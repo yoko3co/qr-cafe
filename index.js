@@ -27,7 +27,8 @@ app.get('/generate', async (req, res) => {
     expiresAt: Date.now() + SESSION_TIME
   });
 
-  const url = `https://yoko3.co/check?session=${sessionId}`;
+  const url = 
+`https://qr-cafe-shh2.onrender.com/check?session=${sessionId}`;
 
   const qr = await QRCode.toDataURL(url);
 
