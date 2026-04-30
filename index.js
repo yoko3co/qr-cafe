@@ -9,7 +9,16 @@ const sessions = new Map();
 
 const SESSION_TIME = 60 * 1000; // 60 seconds
 
-// generate QR
+// HOME PAGE
+app.get('/', (req, res) => {
+  res.send(`
+    <h1>QR Cafe System</h1>
+    <p>Server is running</p>
+    <a href="/generate">Generate QR</a>
+  `);
+});
+
+// GENERATE QR
 app.get('/generate', async (req, res) => {
   const sessionId = Math.random().toString(36).substring(2, 10);
 
@@ -18,7 +27,7 @@ app.get('/generate', async (req, res) => {
     expiresAt: Date.now() + SESSION_TIME
   });
 
-  const url = `http://localhost:${PORT}/check?session=${sessionId}`;
+  const url = `https://yoko3.co/check?session=${sessionId}`;
 
   const qr = await QRCode.toDataURL(url);
 
@@ -29,23 +38,30 @@ app.get('/generate', async (req, res) => {
   `);
 });
 
-// check scan
+// CHECK SCAN
 app.get('/check', (req, res) => {
   const { session } = req.query;
 
   const s = sessions.get(session);
 
-  if (!s) return res.send("❌ Invalid session");
+  if (!s) {
+    return res.send("❌ Invalid session");
+  }
 
-  if (Date.now() > s.expiresAt) return res.send("⏰ Expired");
+  if (Date.now() > s.expiresAt) {
+    return res.send("⏰ Expired session");
+  }
 
-  if (s.used) return res.send("⚠️ Already used");
+  if (s.used) {
+    return res.send("⚠️ Already used");
+  }
 
   s.used = true;
 
   res.send("✅ Check-in successful");
 });
 
+// START SERVER
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
