@@ -2,7 +2,7 @@ const express = require('express');
 const QRCode = require('qrcode');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // store sessions in memory
 const sessions = new Map();
