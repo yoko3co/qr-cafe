@@ -7,7 +7,7 @@ const DAY = 24 * 60 * 60 * 1000;
 const SESSION_TTL = 60 * 60 * 1000;
 const BASE_URL = process.env.BASE_URL || 'https://qr-cafe-shh2.onrender.com';
 const ADMIN_URL = '/admin/hallmann';
-const VERSION = 'v1.2';
+const VERSION = 'v1.3';
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 const sessions = new Map();
