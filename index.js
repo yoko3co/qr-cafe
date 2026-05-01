@@ -15,7 +15,6 @@ const users = new Map();
 const votes = { a: 0, b: 0, c: 0, d: 0 };
 const films = { a: 'Szklana Pulapka', b: 'Speed', c: 'Die Hard', d: 'Straznik Teksasu' };
 const allowedNames = new Set(['marek', 'rafal', 'anna', 'piotr']);
-
 async function fetchAllowedNames() {
   console.log("🔄 Hive fetch running...");
 
@@ -25,40 +24,39 @@ async function fetchAllowedNames() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         jsonrpc: "2.0",
-        method: "condenser_api.get_accounts",
-        params: [["test3333"]],
+        method: "condenser_api.get_account_history",
+        params: ["test3333", -1, 50],
         id: 1
       })
     });
 
     const data = await res.json();
-    console.log("📦 RAW RESPONSE:", data);
 
-    const raw = data?.result?.[0]?.posting_json_metadata;
+    const history = data.result || [];
 
-    let meta = {};
+    let found = null;
 
-    try {
-      const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-      const about = parsed?.profile?.about;
+    for (let i = history.length - 1; i >= 0; i--) {
+      const op = history[i][1].op;
 
-      if (about) {
-        meta = JSON.parse(about);
+      if (op[0] === "custom_json") {
+        const json = JSON.parse(op[1].json);
+
+        if (json.allowed_names) {
+          found = json.allowed_names;
+          break;
+        }
       }
-    } catch (e) {
-      console.log("❌ Parse error:", e.message);
     }
 
-    if (Array.isArray(meta.allowed_names)) {
+    if (found && Array.isArray(found)) {
       allowedNames.clear();
 
-      meta.allowed_names.forEach(n =>
-        allowedNames.add(n.toLowerCase())
-      );
+      found.forEach(n => allowedNames.add(n.toLowerCase()));
 
-      console.log("✅ Names loaded:", [...allowedNames]);
+      console.log("✅ Names loaded from Hive:", [...allowedNames]);
     } else {
-      console.log("⚠️ No allowed_names found");
+      console.log("⚠️ No allowed_names found in history");
     }
 
   } catch (e) {
