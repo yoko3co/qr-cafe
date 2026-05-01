@@ -162,6 +162,7 @@ app.get('/check', function(req, res) {
 '<input type="text" id="hive-username" placeholder="Your Hive username" style="margin-bottom:8px"/>' +
 '<button class="btn btn-blue" onclick="hasLogin()">Login with Hive Keychain</button>' +
 '<div id="has-status" style="margin-top:10px;font-size:13px;color:#aaa"></div>' +
+'<a id="keychain-link" href="#" style="display:none;margin-top:8px" class="btn btn-gold">Open Keychain App</a>' +
 '<a class="link" href="/leaderboard">Leaderboard</a>' +
 '<a class="link" href="/events">Wydarzenia</a>' +
 '<script src="https://unpkg.com/hive-auth-wrapper@2.1.2/dist/hive-auth-wrapper.js"></script>' +
@@ -177,8 +178,10 @@ app.get('/check', function(req, res) {
   'HAS.authenticate(auth, APP_META, challenge, function(evt){' +
     'document.getElementById("has-status").innerText = "Waiting for Keychain approval...";' +
     'if(evt.deeplink){' +
-      'window.location.href = evt.deeplink;' +
-    '}' +
+  'document.getElementById("has-status").innerText = "Tap below to open Keychain app";' +
+  'document.getElementById("keychain-link").href = evt.deeplink;' +
+  'document.getElementById("keychain-link").style.display = "block";' +
+'}'  +
   '})' +
   '.then(function(res){' +
     'document.getElementById("has-status").innerText = "Approved! Checking in...";' +
