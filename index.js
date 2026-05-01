@@ -1,4 +1,3 @@
-cat > ~/qr-cafe/index.js << 'EOF'
 const express = require('express');
 const QRCode = require('qrcode');
 const crypto = require('crypto');
@@ -191,4 +190,3 @@ app.listen(PORT, function() {
   console.log('QR Cafe ' + VERSION + ' running at ' + BASE_URL);
   console.log('Admin: ' + BASE_URL + ADMIN_URL);
 });
-EOF
