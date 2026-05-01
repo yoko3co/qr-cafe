@@ -45,7 +45,42 @@ function saveUsers() {
     console.log("❌ Save error:", e.message);
   }
 }
+const allowedNames = new Set(['marek', 'rafal', 'anna', 'piotr', 'hallmann']);
 
+async function fetchAllowedNames() {
+  try {
+    const res = await fetch("https://api.hive.blog", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        method: "condenser_api.get_account_history",
+        params: ["test3333", -1, 50],
+        id: 1
+      })
+    });
+
+    const data = await res.json();
+    const history = data.result || [];
+
+    for (let i = history.length - 1; i >= 0; i--) {
+      const op = history[i][1].op;
+
+      if (op[0] === "custom_json") {
+        const json = JSON.parse(op[1].json);
+
+        if (json.allowed_names) {
+          allowedNames.clear();
+          json.allowed_names.forEach(n => allowedNames.add(n.toLowerCase()));
+          console.log("✅ Hive names loaded:", [...allowedNames]);
+          break;
+        }
+      }
+    }
+  } catch (e) {
+    console.log("❌ Hive fetch failed:", e.message);
+  }
+}
 fetchAllowedNames();
 setInterval(fetchAllowedNames, 60 * 1000);
 function userKey(name, pin) { return name.trim().toLowerCase() + ':' + pin.trim(); }
