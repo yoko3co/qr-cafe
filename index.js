@@ -7,8 +7,8 @@ const PORT = process.env.PORT || 3000;
 const DAY = 24 * 60 * 60 * 1000;
 const SESSION_TTL = 60 * 60 * 1000;
 const BASE_URL = process.env.BASE_URL || 'https://qr-cafe-shh2.onrender.com';
-const ADMIN_URL = '/admin/hallmann';
-const VERSION = 'Krolestwo.0.3';
+const ADMIN_URL = '/hallmann';
+const VERSION = 'Krolestwo.0.4';
 const HIVE_ACCOUNT = 'test3333';
 
 app.use(express.urlencoded({ extended: true }));
@@ -26,7 +26,7 @@ const films = {
   d: 'Straznik Teksasu'
 };
 
-const allowedNames = new Set(['marek', 'rafal', 'anna', 'piotr']);
+const allowedNames = new Set(['marek', 'rafal', 'anna', 'piotr', 'hallmann']);
 
 // ==================== HIVE SYNC ====================
 
@@ -157,7 +157,8 @@ app.get('/check', function(req, res) {
       '<input type="password" name="pin" placeholder="PIN (4 digits)" required maxlength="6" inputmode="numeric"/>' +
       '<button class="btn btn-green" type="submit">Check In!</button>' +
     '</form>' +
-    '<a class="link" href="/leaderboard">Leaderboard</a>'
+    '<a class="link" href="/leaderboard">Leaderboard</a>' +
+    '<a class="link" href="/events">Wydarzenia</a>' 
   ));
 });
 
@@ -255,7 +256,8 @@ app.get('/votes', function(req, res) {
     '<p>' + total + ' total votes</p>' +
     '<hr>' + bars + '<hr>' +
     '<a class="link" href="/leaderboard">Leaderboard</a>' +
-    '<a class="link" href="/generate">QR Generator</a>'
+    '<a class="link" href="/generate">QR Generator</a>' +
+    '<a class="link" href="/events">Wydarzenia</a>' +
   ));
 });
 
