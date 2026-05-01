@@ -57,7 +57,34 @@ style="width:260px;background:white;padding:10px;border-radius:15px;" />
 });
 
 // -------------------- CHECK-IN + GAMIFICATION --------------------
-app.get('/check', (req, res) => {
+app.get('/check', (req, res) => {if (!user) {
+  return res.send(`
+    <html>
+      <body style="font-family:Arial;text-align:center;padding-top:50px;">
+        <h2>PIN LOGIN</h2>
+
+        <input id="pin" placeholder="Enter PIN" />
+
+        <button onclick="go()">Login</button>
+
+        <script>
+          function go() {
+            const pin = document.getElementById('pin').value;
+
+            if (!pin) return alert("Enter PIN");
+
+            const user = "PIN:" + pin;
+
+            localStorage.setItem("user_id", user);
+
+            window.location.href = "/check?session=${session}&user=" + 
+user;
+          }
+        </script>
+      </body>
+    </html>
+  `);
+}
   const { session, user } = req.query;
 
   const s = sessions.get(session);
