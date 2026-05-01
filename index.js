@@ -13,6 +13,9 @@ const HIVE_ACCOUNT = 'test3333';
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.get('/has.js', function(req, res) {
+  res.sendFile(__dirname + '/has.js');
+});
 
 // ==================== STORAGE ====================
 
@@ -166,7 +169,7 @@ app.get('/check', function(req, res) {
 '<a id="keychain-link" href="#" style="display:none;margin-top:8px" class="btn btn-gold">Open Keychain App</a>' +
 '<a class="link" href="/leaderboard">Leaderboard</a>' +
 '<a class="link" href="/events">Wydarzenia</a>' +
-'<script src="https://cdn.jsdelivr.net/npm/hive-auth-wrapper@2.1.2/dist/hive-auth-wrapper.js"></script>' +
+'<script src="/has.js"></script>' +
 '<script>' +
 'var APP_META = {name:"QR Cafe",description:"Community check-in app",icon:undefined};' +
 'var auth = {username:undefined,token:undefined,expire:undefined,key:undefined};' +
