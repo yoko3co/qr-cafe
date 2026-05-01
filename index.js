@@ -160,20 +160,32 @@ app.get('/check', function(req, res) {
 '<hr>' +
 '<p style="font-size:13px;color:#666">Have a Hive account?</p>' +
 '<input type="text" id="hive-username" placeholder="Your Hive username" style="margin-bottom:8px"/>' +
-'<button class="btn btn-blue" onclick="keychainLogin()">Login with Hive Keychain</button>' +
-'<a class="link" href="/leaderboard">Leaderboard</a>' + '<a class="link" href="/events">Wydarzenia</a>' +
+'<button class="btn btn-blue" onclick="hasLogin()">Login with Hive Keychain</button>' +
+'<div id="has-status" style="margin-top:10px;font-size:13px;color:#aaa"></div>' +
+'<a class="link" href="/leaderboard">Leaderboard</a>' +
+'<a class="link" href="/events">Wydarzenia</a>' +
+'<script src="https://unpkg.com/hive-auth-wrapper@2.1.2/dist/hive-auth-wrapper.js"></script>' +
 '<script>' +
-'function keychainLogin(){' +
-  'const username = document.getElementById("hive-username").value.trim().toLowerCase();' +
+'var APP_META = {name:"QR Cafe",description:"Community check-in app",icon:undefined};' +
+'var auth = {username:undefined,token:undefined,expire:undefined,key:undefined};' +
+'function hasLogin(){' +
+  'var username = document.getElementById("hive-username").value.trim().toLowerCase();' +
   'if(!username) return alert("Please enter your Hive username");' +
-  'if(typeof window.hive_keychain === "undefined") return alert("Hive Keychain extension not found. Please install it first.");' +
-  'const message = "qrcafe-checkin-' + session + '";' +
-  'window.hive_keychain.requestSignBuffer(username, message, "Posting", function(res){' +
-    'if(res.success){' +
-      'window.location.href = "/check?session=' + session + '&hive_user=" + username + "&sig=" + encodeURIComponent(res.result);' +
-    '} else {' +
-      'alert("Keychain error: " + res.message);' +
+  'auth.username = username;' +
+  'document.getElementById("has-status").innerText = "Connecting to Hive... Open Keychain app and approve.";' +
+  'var challenge = {key_type:"posting",challenge:JSON.stringify({app:"qr-cafe",session:"' + session + '",ts:Date.now()})};' +
+  'HAS.authenticate(auth, APP_META, challenge, function(evt){' +
+    'document.getElementById("has-status").innerText = "Waiting for Keychain approval...";' +
+    'if(evt.deeplink){' +
+      'window.location.href = evt.deeplink;' +
     '}' +
+  '})' +
+  '.then(function(res){' +
+    'document.getElementById("has-status").innerText = "Approved! Checking in...";' +
+    'window.location.href = "/hive-checkin?session=' + session + '&user=" + encodeURIComponent(username) + "&token=" + encodeURIComponent(res.token);' +
+  '})' +
+  '.catch(function(err){' +
+    'document.getElementById("has-status").innerText = "Error: " + err.message;' +
   '});' +
 '}' +
 '</script>'
