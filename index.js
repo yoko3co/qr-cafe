@@ -132,6 +132,7 @@ app.get('/generate', async function(req, res) {
     '<img src="' + qr + '" style="width:250px;height:250px;border-radius:12px;margin:12px 0"/>' +
     '<p style="font-size:13px;color:#555">Session valid for 1 hour</p>' +
     '<a class="link" href="/generate">New QR code</a>' +
+    '<a class="link" href="/check?session=' + sid + '">Direct check-in link (desktop test)</a>' +
     '<a class="link" href="/leaderboard">Leaderboard</a>' +
     '<a class="link" href="/votes">Film votes</a>' +
     '<a class="link" href="/events">Wydarzenia</a>' 
