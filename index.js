@@ -108,7 +108,7 @@ function page(title, body) {
 
 '<div style="margin-top:20px">' +
   '<a href="https://www.instagram.com/krolestwo.bez.kresu/" target="_blank" style="margin:0 8px;text-decoration:none;font-size:20px">📸📸📸📸</a>' +
-  '<a href="https://www.facebook.com/herberciarnia" target="_blank" style="margin:0 8px;text-decoration:none;font-size:20px">📘📘📘📘</a>' +
+  '<a href="https://www.facebook.com/herberciarnia" target="_blank" style="margin:0 8px;text-decoration:none;font-size:20px">📘📘📘</a>' +
 '</div>' +
 
 '<span class="version">' + VERSION + '</span>' +
@@ -296,7 +296,7 @@ app.get('/events', function(req, res) {
 
       '<hr>' +
 
-      '<p><strong>4.05 (Monday)</strong><br>18:00 Let\'s Talk Polish</p>' +
+      '<p><strong>4.05 (Monday)</strong><br>18:00 Lets Talk Polish</p>' +
 
     '</div>' +
 
