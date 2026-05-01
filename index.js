@@ -41,7 +41,7 @@ async function fetchAllowedNames() {
 }
 
 fetchAllowedNames();
-setInterval(fetchAllowedNames, 5 * 60 * 1000);
+setInterval(fetchAllowedNames, 1 * 60 * 1000);
 function userKey(name, pin) { return name.trim().toLowerCase() + ':' + pin.trim(); }
 function isAllowed(name) { return allowedNames.has(name.trim().toLowerCase()); }
 app.get('/', function(req, res) { res.redirect('/generate'); });
