@@ -28,7 +28,8 @@ app.get('/check', (req, res) => {
 
               localStorage.setItem("user_id", user);
 
-              window.location.href = "/check?session=${session}&user=" + user;
+              window.location.href = "window.location.href = "/check?session=" + "${session}" + "&user=" + 
+user;
             }
           </script>
 
@@ -57,7 +58,7 @@ app.get('/check', (req, res) => {
   let bonus = 0;
 
   if (user.startsWith("HIVE:")) {
-    bonus = 1;
+    bonus = 0.1;
   }
 
   const total = basePoints + bonus;
