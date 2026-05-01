@@ -1,53 +1,30 @@
 const express = require('express');
 const QRCode = require('qrcode');
 const crypto = require('crypto');
-const fs = require('fs');
-
 const app = express();
 const PORT = process.env.PORT || 3000;
-
 const DAY = 24 * 60 * 60 * 1000;
 const SESSION_TTL = 60 * 60 * 1000;
-
 const BASE_URL = process.env.BASE_URL || 'https://qr-cafe-shh2.onrender.com';
 const ADMIN_URL = '/admin/hallmann';
-const VERSION = 'Krolestwo v0.2';
-
+const VERSION = 'v1.3';
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-
-// -------------------- STORAGE --------------------
 const sessions = new Map();
-let users = new Map();
+const users = new Map();
+const votes = { a: 0, b: 0, c: 0, d: 0 };
+const films = [
+  { id: "a", title: "Szklana Pulapka" },
+  { id: "b", title: "Speed" },
+  { id: "c", title: "Die Hard" },
+  { id: "d", title: "Straznik Teksasu" }
+];
 
-const USERS_FILE = "./users.json";
-
-// -------------------- LOAD USERS --------------------
-try {
-  if (fs.existsSync(USERS_FILE)) {
-    const raw = fs.readFileSync(USERS_FILE, "utf8");
-    const parsed = JSON.parse(raw);
-    users = new Map(parsed);
-    console.log("📦 Users loaded:", users.size);
-  }
-} catch (e) {
-  console.log("⚠️ Failed to load users:", e.message);
-}
-
-// -------------------- SAVE USERS --------------------
-function saveUsers() {
-  try {
-    fs.writeFileSync(
-      USERS_FILE,
-      JSON.stringify([...users], null, 2)
-    );
-  } catch (e) {
-    console.log("❌ Save error:", e.message);
-  }
-}
-const allowedNames = new Set(['marek', 'rafal', 'anna', 'piotr', 'hallmann']);
-
+const votes = { a: 0, b: 0, c: 0, d: 0 };
+const allowedNames = new Set(['marek', 'rafal', 'anna', 'piotr']);
 async function fetchAllowedNames() {
+  console.log("🔄 Hive fetch running...");
+
   try {
     const res = await fetch("https://api.hive.blog", {
       method: "POST",
@@ -61,7 +38,10 @@ async function fetchAllowedNames() {
     });
 
     const data = await res.json();
+
     const history = data.result || [];
+
+    let found = null;
 
     for (let i = history.length - 1; i >= 0; i--) {
       const op = history[i][1].op;
@@ -70,17 +50,27 @@ async function fetchAllowedNames() {
         const json = JSON.parse(op[1].json);
 
         if (json.allowed_names) {
-          allowedNames.clear();
-          json.allowed_names.forEach(n => allowedNames.add(n.toLowerCase()));
-          console.log("✅ Hive names loaded:", [...allowedNames]);
+          found = json.allowed_names;
           break;
         }
       }
     }
+
+    if (found && Array.isArray(found)) {
+      allowedNames.clear();
+
+      found.forEach(n => allowedNames.add(n.toLowerCase()));
+
+      console.log("✅ Names loaded from Hive:", [...allowedNames]);
+    } else {
+      console.log("⚠️ No allowed_names found in history");
+    }
+
   } catch (e) {
     console.log("❌ Hive fetch failed:", e.message);
   }
 }
+
 fetchAllowedNames();
 setInterval(fetchAllowedNames, 60 * 1000);
 function userKey(name, pin) { return name.trim().toLowerCase() + ':' + pin.trim(); }
@@ -145,7 +135,7 @@ app.post('/vote', function(req, res) {
   if (data.voted) return res.json({ ok: false, error: 'Already voted!' });
   if (!films[id]) return res.json({ ok: false, error: 'Invalid choice' });
   data.voted = id;
-  votes[id]++;
+  if (votes[id] !== undefined) votes[id]++;
   users.set(key, data);
   res.json({ ok: true });
 });
@@ -153,7 +143,7 @@ app.get('/votes', function(req, res) {
   const total = Object.values(votes).reduce(function(a, b) { return a + b; }, 0);
   let bars = '';
   for (const id in films) {
-    const count = votes[id];
+   const count = votes[id] || 0;
     const pct = total > 0 ? Math.round((count / total) * 100) : 0;
     bars += '<div style="margin-bottom:18px;text-align:left"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>' + films[id] + '</span><span style="color:#fbbf24;font-weight:700">' + count + ' votes (' + pct + '%)</span></div><div style="background:rgba(255,255,255,0.1);border-radius:999px;height:10px"><div style="background:#fbbf24;width:' + pct + '%;height:10px;border-radius:999px"></div></div></div>';
   }
@@ -227,60 +217,75 @@ app.post(ADMIN_URL + '/reset-votes', function(req, res) {
   users.forEach(function(u) { u.voted = null; });
   res.redirect(ADMIN_URL + '?msg=' + encodeURIComponent('All votes reset'));
 });
+// Assuming you have: 
+// const express = require('express');
+// const app = express();
+// const users = new Map(); // your in-memory user store
+
+app.use(express.urlencoded({ extended: true })); // to parse POST forms
+
+];
+
 app.get('/vote', (req, res) => {
   const key = req.query.key;
-  const user = users.get(key);
+  if (!key) return res.send("No key provided!");
 
-  if (!user) return res.send("Please check in first");
-
-  let buttons = "";
-
-  for (const id in films) {
-    const voted = user.voted === id;
-
-    buttons += `
-      <button 
-        onclick="vote('${id}')"
-        ${user.voted ? "disabled" : ""}
-        style="
-          display:block;
-          width:100%;
-          padding:12px;
-          margin:10px 0;
-          border-radius:10px;
-          border:1px solid #444;
-          background:${voted ? "#4ade80" : "#222"};
-          color:white;
-          cursor:pointer;
-        "
-      >
-        ${voted ? "VOTED: " : ""}${films[id]}
-      </button>
-    `;
+  // Fetch or create user
+  let data = users.get(key);
+  if (!data) {
+    data = { voted: false, name: `Guest-${key}`, vote: null };
+    users.set(key, data);
   }
 
-  res.send(`
-  <html>
-  <body style="background:#111;color:white;font-family:Arial;text-align:center">
-    <h1>Vote for Film</h1>
-    ${buttons}
+  let html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Vote Films</title>
+      <style>
+        body { font-family: Arial; background:#1a1a2e; color:#fff; text-align:center; padding-top:50px; }
+        button { margin: 10px; padding: 10px 20px; font-size: 16px; }
+      </style>
+    </head>
+    <body>
+      <h1>Hello ${data.name}</h1>
+  `;
 
-    <script>
-      function vote(id) {
-        fetch("/vote", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ key: "${key}", id })
-        })
-        .then(r => r.json())
-        .then(d => {
-          if (d.ok) location.reload();
-          else alert("Error");
-        });
-      }
-    </script>
-  </body>
-  </html>
+  if (data.voted) {
+    html += `<p>You've already voted for: <strong>${data.vote}</strong></p>`;
+  } else {
+    html += `<p>Please vote for your favorite film:</p>`;
+    html += `<form method="POST" action="/vote">`;
+    html += `<input type="hidden" name="key" value="${key}">`;
+    films.forEach(film => {
+      html += `<button type="submit" name="film" value="${film.title}">${film.title}</button>`;
+    });
+    html += `</form>`;
+  }
+
+  html += `</body></html>`;
+  res.send(html);
+});
+
+app.post('/vote', (req, res) => {
+  const { key, film } = req.body;
+  if (!key || !film) return res.send("Missing key or film!");
+
+  const user = users.get(key);
+  if (!user) return res.send("User not found!"); // should not happen
+
+  if (user.voted) return res.send("You already voted!");
+
+  // Save vote
+  user.voted = true;
+  user.vote = film;
+  users.set(key, user); // update map
+
+  res.send(`
+    <h1>Thank you ${user.name}!</h1>
+    <p>You voted for: <strong>${film}</strong></p>
+    <a href="/vote?key=${key}">Back to voting page</a>
   `);
 });
 app.listen(PORT, function() {
