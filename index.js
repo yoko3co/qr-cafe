@@ -1,66 +1,48 @@
 const express = require('express');
 const QRCode = require('qrcode');
 const crypto = require('crypto');
+const fs = require('fs');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
+
 const DAY = 24 * 60 * 60 * 1000;
 const SESSION_TTL = 60 * 60 * 1000;
+
 const BASE_URL = process.env.BASE_URL || 'https://qr-cafe-shh2.onrender.com';
 const ADMIN_URL = '/admin/hallmann';
-const VERSION = 'v1.3';
+const VERSION = 'Krolestwo v0.2';
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+
+// -------------------- STORAGE --------------------
 const sessions = new Map();
-const users = new Map();
-const votes = { a: 0, b: 0, c: 0, d: 0 };
-const films = { a: 'Szklana Pulapka', b: 'Speed', c: 'Die Hard', d: 'Straznik Teksasu' };
-const allowedNames = new Set(['marek', 'rafal', 'anna', 'piotr']);
-async function fetchAllowedNames() {
-  console.log("🔄 Hive fetch running...");
+let users = new Map();
 
+const USERS_FILE = "./users.json";
+
+// -------------------- LOAD USERS --------------------
+try {
+  if (fs.existsSync(USERS_FILE)) {
+    const raw = fs.readFileSync(USERS_FILE, "utf8");
+    const parsed = JSON.parse(raw);
+    users = new Map(parsed);
+    console.log("📦 Users loaded:", users.size);
+  }
+} catch (e) {
+  console.log("⚠️ Failed to load users:", e.message);
+}
+
+// -------------------- SAVE USERS --------------------
+function saveUsers() {
   try {
-    const res = await fetch("https://api.hive.blog", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        method: "condenser_api.get_account_history",
-        params: ["test3333", -1, 50],
-        id: 1
-      })
-    });
-
-    const data = await res.json();
-
-    const history = data.result || [];
-
-    let found = null;
-
-    for (let i = history.length - 1; i >= 0; i--) {
-      const op = history[i][1].op;
-
-      if (op[0] === "custom_json") {
-        const json = JSON.parse(op[1].json);
-
-        if (json.allowed_names) {
-          found = json.allowed_names;
-          break;
-        }
-      }
-    }
-
-    if (found && Array.isArray(found)) {
-      allowedNames.clear();
-
-      found.forEach(n => allowedNames.add(n.toLowerCase()));
-
-      console.log("✅ Names loaded from Hive:", [...allowedNames]);
-    } else {
-      console.log("⚠️ No allowed_names found in history");
-    }
-
+    fs.writeFileSync(
+      USERS_FILE,
+      JSON.stringify([...users], null, 2)
+    );
   } catch (e) {
-    console.log("❌ Hive fetch failed:", e.message);
+    console.log("❌ Save error:", e.message);
   }
 }
 
