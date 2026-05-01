@@ -175,7 +175,8 @@ app.get('/check', function(req, res) {
   'auth.username = username;' +
   'document.getElementById("has-status").innerText = "Connecting to Hive... Open Keychain app and approve.";' +
   'var challenge = {key_type:"posting",challenge:JSON.stringify({app:"qr-cafe",session:"' + session + '",ts:Date.now()})};' +
-  'HAS.authenticate(auth, APP_META, challenge, function(evt){' +
+  'HAS.authenticate(auth, APP_META, challenge, function(evt){' + 
+  'console.log("HAS event:", JSON.stringify(evt));' +
     'document.getElementById("has-status").innerText = "Waiting for Keychain approval...";' +
     'if(evt.deeplink){' +
   'document.getElementById("has-status").innerText = "Tap below to open Keychain app";' +
