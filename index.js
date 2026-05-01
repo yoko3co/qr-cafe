@@ -28,7 +28,10 @@ app.get('/check', (req, res) => {
 
               localStorage.setItem("user_id", user);
 
-              window.location.href = "/check?session=${session}&user=" + user;
+              const url = new URL(window.location.href);
+const session = url.searchParams.get("session");
+
+window.location.href = "/check?session=" + session + "&user=" + user;" + user;
             }
           </script>
 
