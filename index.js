@@ -178,11 +178,14 @@ app.get('/check', function(req, res) {
   'HAS.authenticate(auth, APP_META, challenge, function(evt){' + 
   'console.log("HAS event:", JSON.stringify(evt));' +
     'document.getElementById("has-status").innerText = "Waiting for Keychain approval...";' +
-    'if(evt.deeplink){' +
-  'document.getElementById("has-status").innerText = "Tap below to open Keychain app";' +
-  'document.getElementById("keychain-link").href = evt.deeplink;' +
-  'document.getElementById("keychain-link").style.display = "block";' +
-'}'  +
+ 'console.log("HAS event:", JSON.stringify(evt));' +
+'var status = HAS.status();' +
+'var authPayload = {account:auth.username,uuid:evt.uuid,key:evt.key,host:status.host};' +
+'var encoded = btoa(JSON.stringify(authPayload));' +
+'var deeplink = "has://auth_req/" + encoded;' +
+'document.getElementById("has-status").innerText = "Tap below to open Keychain app";' +
+'document.getElementById("keychain-link").href = deeplink;' +
+'document.getElementById("keychain-link").style.display = "block";' +
   '})' +
   '.then(function(res){' +
     'document.getElementById("has-status").innerText = "Approved! Checking in...";' +
