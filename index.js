@@ -1,3 +1,4 @@
+cat > ~/qr-cafe/index.js << 'EOF'
 const express = require('express');
 const QRCode = require('qrcode');
 const crypto = require('crypto');
@@ -14,7 +15,34 @@ const sessions = new Map();
 const users = new Map();
 const votes = { a: 0, b: 0, c: 0, d: 0 };
 const films = { a: 'Szklana Pulapka', b: 'Speed', c: 'Die Hard', d: 'Straznik Teksasu' };
-const allowedNames = new Set(['marek','rafal','anna','piotr']);
+const allowedNames = new Set(['marek', 'rafal', 'anna', 'piotr']);
+
+async function fetchAllowedNames() {
+  try {
+    const res = await fetch('https://api.hive.blog', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'condenser_api.get_accounts',
+        params: [['test3333']],
+        id: 1
+      })
+    });
+    const data = await res.json();
+    const meta = JSON.parse(data.result[0].posting_json_metadata || '{}');
+    if (meta.allowed_names && Array.isArray(meta.allowed_names)) {
+      allowedNames.clear();
+      meta.allowed_names.forEach(function(n) { allowedNames.add(n.toLowerCase()); });
+      console.log('Names loaded from Hive:', [...allowedNames]);
+    }
+  } catch (e) {
+    console.log('Hive fetch failed, using existing names:', e.message);
+  }
+}
+
+fetchAllowedNames();
+setInterval(fetchAllowedNames, 5 * 60 * 1000);
 function userKey(name, pin) { return name.trim().toLowerCase() + ':' + pin.trim(); }
 function isAllowed(name) { return allowedNames.has(name.trim().toLowerCase()); }
 app.get('/', function(req, res) { res.redirect('/generate'); });
@@ -163,3 +191,4 @@ app.listen(PORT, function() {
   console.log('QR Cafe ' + VERSION + ' running at ' + BASE_URL);
   console.log('Admin: ' + BASE_URL + ADMIN_URL);
 });
+EOF
