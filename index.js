@@ -6,7 +6,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const DAY = 24 * 60 * 60 * 1000;
 const SESSION_TTL = 60 * 60 * 1000; // 1 hour
-const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
+const BASE_URL = process.env.BASE_URL || `BASE_URL = 
+https://qr-cafe-shh2.onrender.com`;
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
