@@ -227,6 +227,62 @@ app.post(ADMIN_URL + '/reset-votes', function(req, res) {
   users.forEach(function(u) { u.voted = null; });
   res.redirect(ADMIN_URL + '?msg=' + encodeURIComponent('All votes reset'));
 });
+app.get('/vote', (req, res) => {
+  const key = req.query.key;
+  const user = users.get(key);
+
+  if (!user) return res.send("Please check in first");
+
+  let buttons = "";
+
+  for (const id in films) {
+    const voted = user.voted === id;
+
+    buttons += `
+      <button 
+        onclick="vote('${id}')"
+        ${user.voted ? "disabled" : ""}
+        style="
+          display:block;
+          width:100%;
+          padding:12px;
+          margin:10px 0;
+          border-radius:10px;
+          border:1px solid #444;
+          background:${voted ? "#4ade80" : "#222"};
+          color:white;
+          cursor:pointer;
+        "
+      >
+        ${voted ? "VOTED: " : ""}${films[id]}
+      </button>
+    `;
+  }
+
+  res.send(`
+  <html>
+  <body style="background:#111;color:white;font-family:Arial;text-align:center">
+    <h1>Vote for Film</h1>
+    ${buttons}
+
+    <script>
+      function vote(id) {
+        fetch("/vote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: "${key}", id })
+        })
+        .then(r => r.json())
+        .then(d => {
+          if (d.ok) location.reload();
+          else alert("Error");
+        });
+      }
+    </script>
+  </body>
+  </html>
+  `);
+});
 app.listen(PORT, function() {
   console.log('QR Cafe ' + VERSION + ' running at ' + BASE_URL);
   console.log('Admin: ' + BASE_URL + ADMIN_URL);
