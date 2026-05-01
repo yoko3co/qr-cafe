@@ -9,72 +9,22 @@ const DAY = 24 * 60 * 60 * 1000;
 const SESSION_TTL = 60 * 60 * 1000;
 
 const BASE_URL = process.env.BASE_URL || 'https://qr-cafe-shh2.onrender.com';
-const ADMIN_URL = '/admin/hallmann';
-const VERSION = 'v1.3';
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 const sessions = new Map();
 const users = new Map();
-
 const votes = { a: 0, b: 0, c: 0, d: 0 };
 
 const films = [
-  { id: "https://media.giphy.com/media/l0HlQ7LRal8E8J2vS/giphy.gif", title: "Szklana Pulapka" },
-  { id: "https://media.giphy.com/media/26BRuo6sLetdllPAQ/giphy.gif", title: "Speed" },
-  { id: "https://media.giphy.com/media/3o7aD2saalBwwftBIY/giphy.gif", title: "Die Hard" },
-  { id: "https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif", title: "Straznik Teksasu" }
+  { id: "a", gif: "https://media.giphy.com/media/l0HlQ7LRal8E8J2vS/giphy.gif", title: "Szklana Pulapka" },
+  { id: "b", gif: "https://media.giphy.com/media/26BRuo6sLetdllPAQ/giphy.gif", title: "Speed" },
+  { id: "c", gif: "https://media.giphy.com/media/3o7aD2saalBwwftBIY/giphy.gif", title: "Die Hard" },
+  { id: "d", gif: "https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif", title: "Straznik Teksasu" }
 ];
 
 const allowedNames = new Set(['marek', 'rafal', 'anna', 'piotr']);
-
-async function fetchAllowedNames() {
-  console.log("🔄 Hive fetch running...");
-
-  try {
-    const res = await fetch("https://api.hive.blog", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        method: "condenser_api.get_account_history",
-        params: ["test3333", -1, 50],
-        id: 1
-      })
-    });
-
-    const data = await res.json();
-    const history = data.result || [];
-
-    let found = null;
-
-    for (let i = history.length - 1; i >= 0; i--) {
-      const op = history[i][1].op;
-
-      if (op[0] === "custom_json") {
-        const json = JSON.parse(op[1].json);
-
-        if (json.allowed_names) {
-          found = json.allowed_names;
-          break;
-        }
-      }
-    }
-
-    if (found && Array.isArray(found)) {
-      allowedNames.clear();
-      found.forEach(n => allowedNames.add(n.toLowerCase()));
-      console.log("✅ Names loaded from Hive:", [...allowedNames]);
-    }
-
-  } catch (e) {
-    console.log("❌ Hive fetch failed:", e.message);
-  }
-}
-
-fetchAllowedNames();
-setInterval(fetchAllowedNames, 60 * 1000);
 
 function userKey(name, pin) {
   return name.trim().toLowerCase() + ':' + pin.trim();
@@ -86,19 +36,30 @@ function isAllowed(name) {
 
 app.get('/', (req, res) => res.redirect('/generate'));
 
+
+// ---------------- QR ----------------
 app.get('/generate', async (req, res) => {
   const sid = crypto.randomUUID();
 
-  sessions.set(sid, {
-    expiresAt: Date.now() + SESSION_TTL
-  });
+  sessions.set(sid, { expiresAt: Date.now() + SESSION_TTL });
 
   const url = BASE_URL + '/check?session=' + sid;
-  const qr = await QRCode.toDataURL(url, { width: 280, margin: 2 });
+  const qr = await QRCode.toDataURL(url, { width: 280 });
 
-  res.send(`<h1>QR</h1><img src="${qr}"/>`);
+  res.send(`
+  <body style="background:#0f172a;color:white;display:flex;justify-content:center;align-items:center;height:100vh;font-family:Arial">
+    <div style="text-align:center">
+      <h1>🎬 QR Café</h1>
+      <img src="${qr}" style="border-radius:20px;border:2px solid #333"/>
+      <p>Scan to enter Krolestwo</p>
+      <p style="font-size:12px;color:#888">QR refresh every 60 sec</p>
+    </div>
+  </body>
+  `);
 });
 
+
+// ---------------- LOGIN ----------------
 app.get('/check', (req, res) => {
   const session = req.query.session;
   const s = sessions.get(session);
@@ -108,102 +69,78 @@ app.get('/check', (req, res) => {
 
   res.send(`
 <!DOCTYPE html>
-<html> <h1>Welcome to Krolestwo</h1>
-
-<p style="font-size:14px;color:#ccc;line-height:1.5">
-"To jest Twój Paszport dzięki niemu możesz zbierać punkty, głosować,
-a nawet otrzymywać powiadomienia o najnowszych wydarzeniach"
-</p>
-
-<div style="margin-top:15px;text-align:left;font-size:14px;color:#aaa">
-<b>Login:</b> Użytkownik<br>
-<b>PIN:</b> tylko numery
-</div>
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 body{
+  margin:0;
   font-family:Arial;
   background:#0f172a;
-  color:#fff;
+  color:white;
   display:flex;
-  align-items:center;
   justify-content:center;
-  min-height:100vh;
-  margin:0;
-  padding:20px;
+  align-items:center;
+  height:100vh;
 }
 .card{
-  background:rgba(255,255,255,0.06);
-  border:1px solid rgba(255,255,255,0.1);
-  border-radius:20px;
+  background:rgba(255,255,255,0.05);
   padding:30px;
-  max-width:420px;
-  width:100%;
+  border-radius:20px;
+  width:350px;
   text-align:center;
 }
-h1{margin-bottom:10px}
-p{color:#cbd5e1;font-size:14px;margin-bottom:20px}
 input{
   width:100%;
   padding:12px;
-  margin:6px 0;
+  margin:8px 0;
   border-radius:10px;
-  border:1px solid rgba(255,255,255,0.2);
-  background:rgba(255,255,255,0.05);
-  color:white;
+  border:0;
 }
 button{
   width:100%;
   padding:12px;
-  border:none;
-  border-radius:10px;
   background:#22c55e;
-  color:#052e16;
+  border:0;
+  border-radius:10px;
   font-weight:bold;
-  margin-top:10px;
 }
-.small{font-size:12px;color:#94a3b8;margin-top:10px}
+.bottom{
+  margin-top:15px;
+  font-size:12px;
+  color:#aaa;
+}
 </style>
 </head>
+
 <body>
-
 <div class="card">
-  <h1>👑 Krolestwo Passport</h1>
 
-  <p>
-    "To jest Twój Paszport dzięki niemu możesz zbierać punkty,
-    głosować, a nawet otrzymywać powiadomienia o najnowszych wydarzeniach"
-  </p>
+<h2>👑 Welcome to Krolestwo</h2>
 
-  <form method="POST" action="/check">
-    <input type="hidden" name="session" value="${session}" />
+<p style="font-size:13px;color:#bbb">
+"To jest Twój Paszport dzięki niemu możesz zbierać punkty, głosować..."
+</p>
 
-    <input name="name" placeholder="Użytkownik" required />
+<form method="POST" action="/check">
+  <input type="hidden" name="session" value="${session}" />
+  <input name="name" placeholder="Użytkownik" required />
+  <input name="pin" placeholder="PIN (cyfry)" required />
+  <button>Login</button>
+</form>
 
-    <input name="pin"
-      placeholder="PIN (tylko cyfry)"
-      required
-      inputmode="numeric"
-      pattern="\\d*"
-    />
+<div class="bottom">+1 point per check-in</div>
 
-    <button>Wejście do Królestwa</button>
-  </form>
-
-  <div class="small">Każdy check-in = +1 punkt</div>
 </div>
-
 </body>
 </html>
-`);
+  `);
 });
 
+
+// ---------------- LOGIN POST ----------------
 app.post('/check', (req, res) => {
-  const session = req.body.session;
-  const name = (req.body.name || '').trim();
-  const pin = (req.body.pin || '').trim();
+  const { session, name, pin } = req.body;
 
   const s = sessions.get(session);
   if (!s || Date.now() > s.expiresAt)
@@ -227,42 +164,60 @@ app.post('/check', (req, res) => {
   u.lastVisit = Date.now();
   u.points += 1;
 
-  res.send(`Welcome ${u.name} <a href="/vote?key=${key}">Vote</a>`);
+  res.send(`
+    <h2>Welcome ${u.name}</h2>
+    <a href="/vote?key=${key}">Go vote 🎬</a>
+  `);
 });
 
+
+// ---------------- VOTE UI ----------------
 app.get('/vote', (req, res) => {
   const key = req.query.key;
-  const data = users.get(key);
+  const u = users.get(key);
 
-  if (!data) return res.send("Check-in first");
+  if (!u) return res.send("Check-in first");
 
-  let html = `<h1>${data.name}</h1>`;
+  let html = `
+  <body style="background:#0f172a;color:white;font-family:Arial;text-align:center;padding:40px">
+    <h2>${u.name}</h2>
+    <h3>Choose film</h3>
+  `;
 
-  if (data.voted) {
+  if (u.voted) {
     html += `<p>Already voted</p>`;
   } else {
     films.forEach(f => {
-      html += `<form method="POST">
-        <input name="key" value="${key}" hidden />
-        <input name="id" value="${f.id}" hidden />
-        <button>${f.title}</button>
-      </form>`;
+      html += `
+      <div style="margin:10px auto;width:300px;background:rgba(255,255,255,0.05);padding:10px;border-radius:15px">
+        <img src="${f.gif}" style="width:100%;border-radius:10px"/>
+        <form method="POST" action="/vote">
+          <input name="key" value="${key}" hidden />
+          <input name="id" value="${f.id}" hidden />
+          <button style="width:100%;margin-top:10px;padding:10px;border-radius:10px">
+            ${f.title}
+          </button>
+        </form>
+      </div>`;
     });
   }
 
+  html += `</body>`;
   res.send(html);
 });
 
+
+// ---------------- VOTE POST ----------------
 app.post('/vote', (req, res) => {
   const { key, id } = req.body;
 
   const u = users.get(key);
   if (!u) return res.json({ ok: false });
 
-  if (u.voted) return res.json({ ok: false, error: "Already voted" });
+  if (u.voted) return res.json({ ok: false });
 
   if (!films.find(f => f.id === id))
-    return res.json({ ok: false, error: "Invalid film" });
+    return res.json({ ok: false });
 
   u.voted = id;
   votes[id]++;
@@ -273,5 +228,5 @@ app.post('/vote', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log("Running " + VERSION);
+  console.log("Running");
 });
