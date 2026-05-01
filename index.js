@@ -152,13 +152,31 @@ app.get('/check', function(req, res) {
     '<p>First time? Enter your name and choose a PIN.<br>Returning? Use the same name and PIN.</p>' +
     (error ? '<div class="error">' + error + '</div>' : '') +
     '<form method="POST" action="/check">' +
-      '<input type="hidden" name="session" value="' + session + '"/>' +
-      '<input type="text" name="name" placeholder="Your name" required maxlength="30" autocomplete="off"/>' +
-      '<input type="password" name="pin" placeholder="PIN (4 digits)" required maxlength="6" inputmode="numeric"/>' +
-      '<button class="btn btn-green" type="submit">Check In!</button>' +
-    '</form>' +
-    '<a class="link" href="/leaderboard">Leaderboard</a>' +
-    '<a class="link" href="/events">Wydarzenia</a>' 
+  '<input type="hidden" name="session" value="' + session + '"/>' +
+  '<input type="text" name="name" placeholder="Your name" required maxlength="30" autocomplete="off"/>' +
+  '<input type="password" name="pin" placeholder="PIN (4 digits)" required maxlength="6" inputmode="numeric"/>' +
+  '<button class="btn btn-green" type="submit">Check In with PIN</button>' +
+'</form>' +
+'<hr>' +
+'<p style="font-size:13px;color:#666">Have a Hive account?</p>' +
+'<input type="text" id="hive-username" placeholder="Your Hive username" style="margin-bottom:8px"/>' +
+'<button class="btn btn-blue" onclick="keychainLogin()">Login with Hive Keychain</button>' +
+'<a class="link" href="/leaderboard">Leaderboard</a>' + '<a class="link" href="/events">Wydarzenia</a>' +
+'<script>' +
+'function keychainLogin(){' +
+  'const username = document.getElementById("hive-username").value.trim().toLowerCase();' +
+  'if(!username) return alert("Please enter your Hive username");' +
+  'if(typeof window.hive_keychain === "undefined") return alert("Hive Keychain extension not found. Please install it first.");' +
+  'const message = "qrcafe-checkin-' + session + '";' +
+  'window.hive_keychain.requestSignBuffer(username, message, "Posting", function(res){' +
+    'if(res.success){' +
+      'window.location.href = "/check?session=' + session + '&hive_user=" + username + "&sig=" + encodeURIComponent(res.result);' +
+    '} else {' +
+      'alert("Keychain error: " + res.message);' +
+    '}' +
+  '});' +
+'}' +
+'</script>'
   ));
 });
 
