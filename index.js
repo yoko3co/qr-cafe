@@ -5,22 +5,21 @@ const crypto = require('crypto');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const DAY = 24 * 60 * 60 * 1000;
-const SESSION_TTL = 60 * 60 * 1000; // 1 hour
-const BASE_URL = process.env.BASE_URL || `BASE_URL = 
-https://qr-cafe-shh2.onrender.com`;
+const SESSION_TTL = 60 * 60 * 1000;
+const BASE_URL = process.env.BASE_URL || `https://qr-cafe-shh2.onrender.com`;
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 // -------------------- STORAGE --------------------
 const sessions = new Map();
-const users = new Map();    // "name:pin" -> { name, lastVisit, points, voted }
+const users = new Map();
 const votes = { a: 0, b: 0, c: 0, d: 0 };
 const films = {
-  a: '🪟 Szklana Pułapka',
-  b: '🚌 Speed',
-  c: '💀 Die Hard',
-  d: '🤠 Strażnik Teksasu'
+  a: 'Szklana Pulapka',
+  b: 'Speed',
+  c: 'Die Hard',
+  d: 'Straznik Teksasu'
 };
 
 // -------------------- STYLES --------------------
@@ -77,7 +76,6 @@ const style = `
     }
     .btn:active { transform: scale(0.98); }
     .btn-green { background: #4ade80; color: #052e16; }
-    .btn-blue  { background: #60a5fa; color: #0c1a3a; }
     .btn-gold  { background: #fbbf24; color: #1c0a00; }
     .btn:hover { opacity: 0.9; }
     .points-badge {
@@ -123,8 +121,7 @@ rgba(255,255,255,0.05); font-size: 15px; }
 20px 0; }
     .bar-wrap { background: rgba(255,255,255,0.1); border-radius: 999px; height: 
 10px; margin-top: 6px; }
-    .bar { background: #fbbf24; height: 10px; border-radius: 999px; transition: width 
-0.6s; }
+    .bar { background: #fbbf24; height: 10px; border-radius: 999px; }
     strong { color: white; }
   </style>
 `;
@@ -133,6 +130,11 @@ rgba(255,255,255,0.05); font-size: 15px; }
 function userKey(name, pin) {
   return `${name.trim().toLowerCase()}:${pin.trim()}`;
 }
+
+// -------------------- HOME --------------------
+app.get('/', (req, res) => {
+  res.redirect('/generate');
+});
 
 // -------------------- QR GENERATOR --------------------
 app.get('/generate', async (req, res) => {
@@ -144,30 +146,30 @@ app.get('/generate', async (req, res) => {
 
   res.send(`<html><head>${style}</head><body>
     <div class="card">
-      <h1>📍 QR Café</h1>
+      <h1>QR Cafe</h1>
       <h2>Scan to Check In</h2>
       <img src="${qrDataUrl}" 
 style="width:260px;height:260px;border-radius:12px;margin:16px 0;" />
       <p style="font-size:13px;color:#666;">Session valid for 1 hour</p>
-      <a class="link" href="/generate">🔄 New QR code</a>
-      <a class="link" href="/leaderboard">🏆 Leaderboard</a>
-      <a class="link" href="/votes">🎬 Film votes</a>
+      <a class="link" href="/generate">New QR code</a>
+      <a class="link" href="/leaderboard">Leaderboard</a>
+      <a class="link" href="/votes">Film votes</a>
     </div>
   </body></html>`);
 });
 
-// -------------------- CHECK IN (GET = show form) --------------------
+// -------------------- CHECK IN (GET) --------------------
 app.get('/check', (req, res) => {
   const { session } = req.query;
   const s = sessions.get(session);
 
   if (!s) return res.send(`<html><head>${style}</head><body>
-    <div class="card"><h1>❌</h1><h2>Invalid QR Code</h2>
+    <div class="card"><h1>X</h1><h2>Invalid QR Code</h2>
     <p>This QR code is not valid. Please scan a fresh one.</p></div>
   </body></html>`);
 
   if (Date.now() > s.expiresAt) return res.send(`<html><head>${style}</head><body>
-    <div class="card"><h1>⏰</h1><h2>QR Code Expired</h2>
+    <div class="card"><h1>!</h1><h2>QR Code Expired</h2>
     <p>This code has expired. Please scan a fresh QR code.</p></div>
   </body></html>`);
 
@@ -175,53 +177,55 @@ app.get('/check', (req, res) => {
 
   res.send(`<html><head>${style}</head><body>
     <div class="card">
-      <h1>👑</h1>
-      <h2>Witamy w Królestwie!</h2>
-      <p>Pierwszy raz? Wpisz imię i wybierz PIN.<br/>Byłeś już? Użyj tego samego 
-imienia i PIN-u.</p>
-      ${error ? `<div class="error">⚠️ ${error}</div>` : ''}
+      <h1>QR Cafe</h1>
+      <h2>Witamy w Krolestwie!</h2>
+      <p>First time? Enter your name and choose a PIN.<br/>Returning? Use the same 
+name and PIN.</p>
+      ${error ? `<div class="error">${error}</div>` : ''}
       <form method="POST" action="/check">
         <input type="hidden" name="session" value="${session}" />
-        <input type="text" name="name" placeholder="Twoje imię (np. Marek)" required 
+        <input type="text" name="name" placeholder="Your name (e.g. Marek)" required 
 maxlength="30" autocomplete="off" />
-        <input type="password" name="pin" placeholder="PIN (4 cyfry)" required 
+        <input type="password" name="pin" placeholder="PIN (4 digits)" required 
 maxlength="6" inputmode="numeric" />
-        <button class="btn btn-green" type="submit">✅ Zamelduj się!</button>
+        <button class="btn btn-green" type="submit">Check In!</button>
       </form>
-      <a class="link" href="/leaderboard">🏆 Leaderboard</a>
+      <a class="link" href="/leaderboard">Leaderboard</a>
     </div>
   </body></html>`);
 });
 
-// -------------------- CHECK IN (POST = process) --------------------
+// -------------------- CHECK IN (POST) --------------------
 app.post('/check', (req, res) => {
   const { session, name, pin } = req.body;
   const s = sessions.get(session);
 
   if (!s || Date.now() > s.expiresAt) {
-    return res.redirect(`/check?session=${session}&error=${encodeURIComponent('Sesja 
-wygasła, zeskanuj kod ponownie')}`);
+    return 
+res.redirect(`/check?session=${session}&error=${encodeURIComponent('Session expired, 
+please scan again')}`);
   }
 
   const trimName = (name || '').trim();
   const trimPin = (pin || '').trim();
 
   if (!trimName || !trimPin) {
-    return res.redirect(`/check?session=${session}&error=${encodeURIComponent('Wpisz 
-imię i PIN')}`);
+    return res.redirect(`/check?session=${session}&error=${encodeURIComponent('Please 
+enter your name and PIN')}`);
   }
   if (!/^\d{4,6}$/.test(trimPin)) {
     return res.redirect(`/check?session=${session}&error=${encodeURIComponent('PIN 
-musi mieć 4-6 cyfr')}`);
+must be 4-6 digits')}`);
   }
 
   const key = userKey(trimName, trimPin);
 
-  // Check if name exists with a DIFFERENT pin
+  // Check if name exists with a different PIN
   for (const [k, v] of users.entries()) {
     if (v.name.toLowerCase() === trimName.toLowerCase() && k !== key) {
-      return res.redirect(`/check?session=${session}&error=${encodeURIComponent('Złe 
-hasło PIN dla tego imienia')}`);
+      return 
+res.redirect(`/check?session=${session}&error=${encodeURIComponent('Wrong PIN for 
+this name')}`);
     }
   }
 
@@ -234,19 +238,19 @@ hasło PIN dla tego imienia')}`);
 
   // Already checked in today
   if (data.lastVisit && Date.now() - data.lastVisit < DAY) {
-    const nextTime = new Date(data.lastVisit + DAY).toLocaleTimeString('pl-PL', { 
+    const nextTime = new Date(data.lastVisit + DAY).toLocaleTimeString('en-GB', { 
 hour: '2-digit', minute: '2-digit' });
     return res.send(`<html><head>${style}</head><body>
       <div class="card">
-        <h1>⛔</h1>
-        <h2>Już byłeś dziś!</h2>
-        <p>Hej <strong>${data.name}</strong>, już się dziś zarejestrowałeś.<br/>Wróć 
-jutro po <strong>${nextTime}</strong>.</p>
-        <div class="points-badge">⭐ ${data.points} punktów</div>
+        <h1>!</h1>
+        <h2>Already checked in today!</h2>
+        <p>Hey <strong>${data.name}</strong>, you already checked in today.<br/>Come 
+back after <strong>${nextTime}</strong>.</p>
+        <div class="points-badge">${data.points} points</div>
         <a href="/vote?key=${encodeURIComponent(key)}">
-          <button class="btn btn-gold">🎬 Zagłosuj na film</button>
+          <button class="btn btn-gold">Vote for a film!</button>
         </a>
-        <a class="link" href="/leaderboard">🏆 Leaderboard</a>
+        <a class="link" href="/leaderboard">Leaderboard</a>
       </div>
     </body></html>`);
   }
@@ -258,74 +262,74 @@ jutro po <strong>${nextTime}</strong>.</p>
 
   res.send(`<html><head>${style}</head><body>
     <div class="card">
-      <h1>👑</h1>
-      <h2>Witamy w Królestwie!</h2>
-      <p>Cześć <strong>${data.name}</strong>!<br/>Cieszmy się że jesteś z nami! 
-Ainz Zwai Drai</p>
-      <div class="points-badge">⭐ +1 punkt · Razem: ${data.points}</div>
-      <p>Zagłosuj na film wieczoru:</p>
+      <h1>Witamy w Krolestwie!</h1>
+      <h2>Welcome ${data.name}!</h2>
+      <p>Great to have you here! 🎉</p>
+      <div class="points-badge">+1 point · Total: ${data.points}</div>
+      <p>Vote for tonight's film:</p>
       <a href="/vote?key=${encodeURIComponent(key)}">
-        <button class="btn btn-gold">🎬 Głosuj na film!</button>
+        <button class="btn btn-gold">Vote for a film!</button>
       </a>
-      <a class="link" href="/leaderboard">🏆 Leaderboard</a>
+      <a class="link" href="/leaderboard">Leaderboard</a>
     </div>
   </body></html>`);
 });
 
-// -------------------- VOTE --------------------
+// -------------------- VOTE (GET) --------------------
 app.get('/vote', (req, res) => {
   const { key } = req.query;
   const data = users.get(key);
 
   if (!data) return res.send(`<html><head>${style}</head><body>
-    <div class="card"><h1>❌</h1><h2>Najpierw się zamelduj!</h2>
-    <p>Zeskanuj QR kod żeby się zalogować.</p></div>
+    <div class="card"><h1>!</h1><h2>Check in first!</h2>
+    <p>Please scan the QR code to check in first.</p></div>
   </body></html>`);
 
   const alreadyVoted = data.voted;
 
   const filmButtons = Object.entries(films).map(([id, title]) => {
     const isVoted = alreadyVoted === id;
-    return `<button class="film-btn ${isVoted ? 'voted' : ''}" 
+    return `<button class="film-btn ${isVoted ? 'voted' : ''}"
       ${alreadyVoted ? 'disabled' : `onclick="vote('${id}')"`}>
-      ${isVoted ? '✅ ' : ''}${title}
+      ${isVoted ? '✓ ' : ''}${title}
     </button>`;
   }).join('');
 
   res.send(`<html><head>${style}</head><body>
     <div class="card">
-      <h1>🎬</h1>
-      <h2>Film wieczoru</h2>
+      <h1>Film of the night</h1>
+      <h2>${alreadyVoted ? 'You voted!' : 'Which film tonight?'}</h2>
       <p>${alreadyVoted
-        ? `Zagłosowałeś na <strong>${films[alreadyVoted]}</strong>! Dziękujemy!`
-        : `Hej <strong>${data.name}</strong>! Który film oglądamy dziś wieczór?`
+        ? `You voted for <strong>${films[alreadyVoted]}</strong>. Thank you!`
+        : `Hey <strong>${data.name}</strong>! Pick your favourite:`
       }</p>
       ${filmButtons}
-      <a class="link" href="/votes">📊 Zobacz wyniki głosowania</a>
-      <a class="link" href="/leaderboard">🏆 Leaderboard</a>
+      <a class="link" href="/votes">See vote results</a>
+      <a class="link" href="/leaderboard">Leaderboard</a>
     </div>
     <script>
       function vote(id) {
         fetch('/vote', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: "${key}", id })
+          body: JSON.stringify({ key: "${key}", id: id })
         }).then(r => r.json()).then(d => {
           if (d.ok) window.location.reload();
-          else alert(d.error || 'Błąd głosowania');
+          else alert(d.error || 'Error voting');
         });
       }
     </script>
   </body></html>`);
 });
 
+// -------------------- VOTE (POST) --------------------
 app.post('/vote', (req, res) => {
   const { key, id } = req.body;
   const data = users.get(key);
 
-  if (!data) return res.json({ ok: false, error: 'Nie znaleziono użytkownika' });
-  if (data.voted) return res.json({ ok: false, error: 'Już głosowałeś!' });
-  if (!films[id]) return res.json({ ok: false, error: 'Nieprawidłowy wybór' });
+  if (!data) return res.json({ ok: false, error: 'User not found' });
+  if (data.voted) return res.json({ ok: false, error: 'Already voted!' });
+  if (!films[id]) return res.json({ ok: false, error: 'Invalid choice' });
 
   data.voted = id;
   votes[id]++;
@@ -344,7 +348,7 @@ app.get('/votes', (req, res) => {
       <div style="margin-bottom:18px;text-align:left;">
         <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
           <span>${title}</span>
-          <span style="color:#fbbf24;font-weight:700;">${count} głosów 
+          <span style="color:#fbbf24;font-weight:700;">${count} votes 
 (${pct}%)</span>
         </div>
         <div class="bar-wrap"><div class="bar" style="width:${pct}%"></div></div>
@@ -353,14 +357,14 @@ app.get('/votes', (req, res) => {
 
   res.send(`<html><head>${style}</head><body>
     <div class="card">
-      <h1>📊</h1>
-      <h2>Wyniki głosowania</h2>
-      <p>${total} głosów oddanych łącznie</p>
+      <h1>Vote Results</h1>
+      <h2>Film of the night</h2>
+      <p>${total} total votes</p>
       <hr class="divider"/>
       ${bars}
       <hr class="divider"/>
-      <a class="link" href="/leaderboard">🏆 Leaderboard</a>
-      <a class="link" href="/generate">📍 QR Generator</a>
+      <a class="link" href="/leaderboard">Leaderboard</a>
+      <a class="link" href="/generate">QR Generator</a>
     </div>
   </body></html>`);
 });
@@ -371,36 +375,35 @@ app.get('/leaderboard', (req, res) => {
     .sort((a, b) => b.points - a.points)
     .slice(0, 20);
 
-  const medals = ['🥇', '🥈', '🥉'];
+  const medals = ['1st', '2nd', '3rd'];
   const rows = sorted.length === 0
-    ? '<tr><td colspan="3" style="color:#666;padding:20px;">Brak graczy 
-jeszcze</td></tr>'
+    ? '<tr><td colspan="3" style="color:#666;padding:20px;">No players yet</td></tr>'
     : sorted.map((u, i) => `
         <tr>
           <td>${medals[i] || i + 1}</td>
           <td style="text-align:left;">${u.name}</td>
-          <td>${u.points} ⭐</td>
+          <td>${u.points} pts</td>
         </tr>`).join('');
 
   res.send(`<html><head>${style}</head><body>
     <div class="card">
-      <h1>🏆</h1>
-      <h2>Leaderboard</h2>
+      <h1>Leaderboard</h1>
+      <h2>Top Players</h2>
       <table class="leaderboard">
-        <tr><th>#</th><th style="text-align:left;">Gracz</th><th>Punkty</th></tr>
+        <tr><th>#</th><th style="text-align:left;">Player</th><th>Points</th></tr>
         ${rows}
       </table>
       <hr class="divider"/>
-      <a class="link" href="/votes">🎬 Wyniki głosowania</a>
-      <a class="link" href="/generate">📍 QR Generator</a>
+      <a class="link" href="/votes">Vote results</a>
+      <a class="link" href="/generate">QR Generator</a>
     </div>
   </body></html>`);
 });
 
 // -------------------- START --------------------
 app.listen(PORT, () => {
-  console.log(`✅ QR Café running at ${BASE_URL}`);
-  console.log(`📍 Generate QR: ${BASE_URL}/generate`);
-  console.log(`🏆 Leaderboard: ${BASE_URL}/leaderboard`);
-  console.log(`🎬 Votes: ${BASE_URL}/votes`);
+  console.log(`QR Cafe running at ${BASE_URL}`);
+  console.log(`Generate QR: ${BASE_URL}/generate`);
+  console.log(`Leaderboard: ${BASE_URL}/leaderboard`);
+  console.log(`Votes: ${BASE_URL}/votes`);
 });
