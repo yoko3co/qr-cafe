@@ -257,7 +257,7 @@ app.get('/votes', function(req, res) {
     '<hr>' + bars + '<hr>' +
     '<a class="link" href="/leaderboard">Leaderboard</a>' +
     '<a class="link" href="/generate">QR Generator</a>' +
-    '<a class="link" href="/events">Wydarzenia</a>' +
+    '<a class="link" href="/events">Wydarzenia</a>' 
   ));
 });
 
@@ -282,7 +282,7 @@ app.get('/leaderboard', function(req, res) {
 // ==================== Additional Buttons ====================
 
 app.get('/events', function(req, res) {
-  res.send(page('Wydarzenia',
+  res.send(page('Wydarzenia', 
     '<h1>Wydarzenia</h1>' +
     '<h2>Upcoming Events</h2>' +
 
