@@ -8,7 +8,7 @@ const DAY = 24 * 60 * 60 * 1000;
 const SESSION_TTL = 60 * 60 * 1000;
 const BASE_URL = process.env.BASE_URL || 'https://qr-cafe-shh2.onrender.com';
 const ADMIN_URL = '/admin/hallmann';
-const VERSION = 'v1.3';
+const VERSION = 'Krolestwo.0.3';
 const HIVE_ACCOUNT = 'test3333';
 
 app.use(express.urlencoded({ extended: true }));
@@ -105,7 +105,13 @@ function page(title, body) {
     '</style>' +
     '</head><body><div class="card">' +
     body +
-    '<span class="version">' + VERSION + '</span>' +
+
+'<div style="margin-top:20px">' +
+  '<a href="https://www.instagram.com/krolestwo.bez.kresu/" target="_blank" style="margin:0 8px;text-decoration:none;font-size:20px">📸</a>' +
+  '<a href="https://www.facebook.com/herberciarnia" target="_blank" style="margin:0 8px;text-decoration:none;font-size:20px">📘</a>' +
+'</div>' +
+
+'<span class="version">' + VERSION + '</span>' +
     '</div></body></html>';
 }
 
@@ -127,7 +133,8 @@ app.get('/generate', async function(req, res) {
     '<p style="font-size:13px;color:#555">Session valid for 1 hour</p>' +
     '<a class="link" href="/generate">New QR code</a>' +
     '<a class="link" href="/leaderboard">Leaderboard</a>' +
-    '<a class="link" href="/votes">Film votes</a>'
+    '<a class="link" href="/votes">Film votes</a>' +
+    '<a class="link" href="/events">Wydarzenia</a>' 
   ));
 });
 
@@ -270,6 +277,31 @@ app.get('/leaderboard', function(req, res) {
   ));
 });
 
+// ==================== Additional Buttons ====================
+
+app.get('/events', function(req, res) {
+  res.send(page('Wydarzenia',
+    '<h1>Wydarzenia</h1>' +
+    '<h2>Upcoming Events</h2>' +
+
+    '<div style="text-align:left">' +
+
+      '<p><strong>1.05 (Friday)</strong><br>17:00 Painting Day<br>20:00 Quiz: Peerel</p>' +
+
+      '<hr>' +
+
+      '<p><strong>2.05 (Saturday)</strong><br>19:00 Board Games & Tea</p>' +
+
+      '<hr>' +
+
+      '<p><strong>4.05 (Monday)</strong><br>18:00 Let\'s Talk Polish</p>' +
+
+    '</div>' +
+
+    '<a class="link" href="/generate">QR Generator</a>' +
+    '<a class="link" href="/leaderboard">Leaderboard</a>'
+  ));
+});
 // ==================== ADMIN PANEL ====================
 
 app.get(ADMIN_URL, function(req, res) {
