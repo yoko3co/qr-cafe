@@ -1,6 +1,6 @@
 app.get('/check', (req, res) => {
 
-  const { session, user = "PIN:test" } = req.query;
+  const { session, user } = req.query;
 
   const s = sessions.get(session);
 
@@ -28,8 +28,7 @@ app.get('/check', (req, res) => {
 
               localStorage.setItem("user_id", user);
 
-              window.location.href = "window.location.href = "/check?session=" + "${session}" + "&user=" + 
-user;
+              window.location.href = "/check?session=${session}&user=" + user;
             }
           </script>
 
