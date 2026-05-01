@@ -21,10 +21,10 @@ const users = new Map();
 const votes = { a: 0, b: 0, c: 0, d: 0 };
 
 const films = [
-  { id: "a", title: "Szklana Pulapka" },
-  { id: "b", title: "Speed" },
-  { id: "c", title: "Die Hard" },
-  { id: "d", title: "Straznik Teksasu" }
+  { id: "https://media.giphy.com/media/l0HlQ7LRal8E8J2vS/giphy.gif", title: "Szklana Pulapka" },
+  { id: "https://media.giphy.com/media/26BRuo6sLetdllPAQ/giphy.gif", title: "Speed" },
+  { id: "https://media.giphy.com/media/3o7aD2saalBwwftBIY/giphy.gif", title: "Die Hard" },
+  { id: "https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif", title: "Straznik Teksasu" }
 ];
 
 const allowedNames = new Set(['marek', 'rafal', 'anna', 'piotr']);
@@ -106,12 +106,98 @@ app.get('/check', (req, res) => {
   if (!s) return res.send("Invalid QR");
   if (Date.now() > s.expiresAt) return res.send("Expired QR");
 
-  res.send(`<form method="POST">
-    <input name="session" value="${session}" hidden />
-    <input name="name" />
-    <input name="pin" />
-    <button>Check</button>
-  </form>`);
+  res.send(`
+<!DOCTYPE html>
+<html> <h1>Welcome to Krolestwo</h1>
+
+<p style="font-size:14px;color:#ccc;line-height:1.5">
+"To jest Twój Paszport dzięki niemu możesz zbierać punkty, głosować,
+a nawet otrzymywać powiadomienia o najnowszych wydarzeniach"
+</p>
+
+<div style="margin-top:15px;text-align:left;font-size:14px;color:#aaa">
+<b>Login:</b> Użytkownik<br>
+<b>PIN:</b> tylko numery
+</div>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{
+  font-family:Arial;
+  background:#0f172a;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:100vh;
+  margin:0;
+  padding:20px;
+}
+.card{
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:20px;
+  padding:30px;
+  max-width:420px;
+  width:100%;
+  text-align:center;
+}
+h1{margin-bottom:10px}
+p{color:#cbd5e1;font-size:14px;margin-bottom:20px}
+input{
+  width:100%;
+  padding:12px;
+  margin:6px 0;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,0.2);
+  background:rgba(255,255,255,0.05);
+  color:white;
+}
+button{
+  width:100%;
+  padding:12px;
+  border:none;
+  border-radius:10px;
+  background:#22c55e;
+  color:#052e16;
+  font-weight:bold;
+  margin-top:10px;
+}
+.small{font-size:12px;color:#94a3b8;margin-top:10px}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1>👑 Krolestwo Passport</h1>
+
+  <p>
+    "To jest Twój Paszport dzięki niemu możesz zbierać punkty,
+    głosować, a nawet otrzymywać powiadomienia o najnowszych wydarzeniach"
+  </p>
+
+  <form method="POST" action="/check">
+    <input type="hidden" name="session" value="${session}" />
+
+    <input name="name" placeholder="Użytkownik" required />
+
+    <input name="pin"
+      placeholder="PIN (tylko cyfry)"
+      required
+      inputmode="numeric"
+      pattern="\\d*"
+    />
+
+    <button>Wejście do Królestwa</button>
+  </form>
+
+  <div class="small">Każdy check-in = +1 punkt</div>
+</div>
+
+</body>
+</html>
+`);
 });
 
 app.post('/check', (req, res) => {
