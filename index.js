@@ -17,31 +17,57 @@ const films = { a: 'Szklana Pulapka', b: 'Speed', c: 'Die Hard', d: 'Straznik Te
 const allowedNames = new Set(['marek', 'rafal', 'anna', 'piotr']);
 
 async function fetchAllowedNames() {
+  console.log("🔄 Hive fetch running...");
+
   try {
-    const res = await fetch('https://api.hive.blog', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch("https://api.hive.blog", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        jsonrpc: '2.0',
-        method: 'condenser_api.get_accounts',
-        params: [['test3333']],
+        jsonrpc: "2.0",
+        method: "condenser_api.get_accounts",
+        params: [["test3333"]],
         id: 1
       })
     });
+
     const data = await res.json();
-    const meta = JSON.parse(data.result[0].posting_json_metadata || '{}');
-    if (meta.allowed_names && Array.isArray(meta.allowed_names)) {
-      allowedNames.clear();
-      meta.allowed_names.forEach(function(n) { allowedNames.add(n.toLowerCase()); });
-      console.log('Names loaded from Hive:', [...allowedNames]);
+    console.log("📦 RAW RESPONSE:", data);
+
+    const raw = data?.result?.[0]?.posting_json_metadata;
+
+    let meta = {};
+
+    try {
+      const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+      const about = parsed?.profile?.about;
+
+      if (about) {
+        meta = JSON.parse(about);
+      }
+    } catch (e) {
+      console.log("❌ Parse error:", e.message);
     }
+
+    if (Array.isArray(meta.allowed_names)) {
+      allowedNames.clear();
+
+      meta.allowed_names.forEach(n =>
+        allowedNames.add(n.toLowerCase())
+      );
+
+      console.log("✅ Names loaded:", [...allowedNames]);
+    } else {
+      console.log("⚠️ No allowed_names found");
+    }
+
   } catch (e) {
-    console.log('Hive fetch failed, using existing names:', e.message);
+    console.log("❌ Hive fetch failed:", e.message);
   }
 }
 
 fetchAllowedNames();
-setInterval(fetchAllowedNames, 1 * 60 * 1000);
+setInterval(fetchAllowedNames, 60 * 1000);
 function userKey(name, pin) { return name.trim().toLowerCase() + ':' + pin.trim(); }
 function isAllowed(name) { return allowedNames.has(name.trim().toLowerCase()); }
 app.get('/', function(req, res) { res.redirect('/generate'); });
