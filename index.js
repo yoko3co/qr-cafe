@@ -18,9 +18,6 @@ const films = [
   { id: "b", title: "Speed" },
   { id: "c", title: "Die Hard" },
   { id: "d", title: "Straznik Teksasu" }
-];
-
-const votes = { a: 0, b: 0, c: 0, d: 0 };
 const allowedNames = new Set(['marek', 'rafal', 'anna', 'piotr']);
 async function fetchAllowedNames() {
   console.log("🔄 Hive fetch running...");
