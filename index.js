@@ -12,6 +12,10 @@ const VERSION = 'Krolestwo.0.4';
 const HIVE_ACCOUNT = 'test3333';
 
 app.use(express.urlencoded({ extended: true }));
+app.use(function(req, res, next) {
+  res.setHeader('Content-Security-Policy', "default-src 'self' 'unsafe-eval' 'unsafe-inline' wss://hive-auth.arcange.eu https:");
+  next();
+});
 app.use(express.json());
 app.get('/has.js', function(req, res) {
   res.sendFile(__dirname + '/has.js');
