@@ -295,7 +295,7 @@ app.get('/hive-checkin', function(req, res) {
     '}' +
   '});' +
 '}' +
-'</script>' +' 
+'</script>' + 
     '<a class="link" href="/leaderboard">Leaderboard</a>'
   ));
 });
