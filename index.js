@@ -172,16 +172,19 @@ app.get('/check', function(req, res) {
 '<script>' +
 'if(typeof window.hive_keychain !== "undefined"){' +
   'document.getElementById("open-keychain").style.display="none";' +
-  'var username = null;' +
-  'window.hive_keychain.requestHandshake(function(){' +
+  'var btn = document.createElement("button");' +
+  'btn.className = "btn btn-blue";' +
+  'btn.innerText = "Sign in with Keychain";' +
+  'btn.onclick = function(){' +
     'window.hive_keychain.requestSignBuffer(null,"qrcafe-checkin-' + session + '","Posting",function(res){' +
       'if(res.success){' +
         'window.location.href="/hive-checkin?session=' + session + '&user="+encodeURIComponent(res.data.username);' +
       '} else {' +
-        'alert("Keychain error: "+res.message);' +
+        'alert("Error: "+res.message);' +
       '}' +
     '});' +
-  '});' +
+  '};' +
+  'document.getElementById("open-keychain").parentNode.insertBefore(btn, document.getElementById("open-keychain").nextSibling);' +
 '}' +
 '</script>' +
 '<div id="has-status" style="margin-top:10px;font-size:13px;color:#aaa"></div>' +
