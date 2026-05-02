@@ -114,6 +114,7 @@ function page(title, body, wide) {
       '<a href="https://www.facebook.com/herberciarnia" target="_blank" style="margin:0 8px;text-decoration:none;font-size:20px">📘</a>' +
     '</div>' +
     '<span class="version">' + VERSION + '</span>' +
+    '<a href="/hallmann" style="position:absolute;bottom:12px;left:16px;font-size:11px;color:rgba(255,255,255,0.2);text-decoration:none">admin</a>' +
     '</div></body></html>';
 }
 
@@ -454,7 +455,7 @@ app.get(ADMIN_URL + '/panel', function(req, res) {
     '<hr>' +
     '<h2 style="text-align:left;margin-bottom:12px">Allowed Names (' + allowedNames.size + ')</h2>' +
     '<p style="text-align:left;font-size:13px;color:#666">Synced from Hive: ' + HIVE_ACCOUNT + ' every 5 min</p>' +
-    '<div style="text-align:left;margin-bottom:12px">' + (nameTags || '<p style="color:#555">No names yet</p>') + '</div>' +
+    '<details style="text-align:left;margin-bottom:12px"><summary style="cursor:pointer;color:#60a5fa;font-size:14px">Show allowed names (' + allowedNames.size + ')</summary><div style="margin-top:8px">' + (nameTags || '<p style="color:#555">No names yet</p>') + '</div></details>' +
     '<form method="POST" action="' + ADMIN_URL + '/add-name?admin=' + token + '" style="display:flex;gap:8px">' +
       '<input type="text" name="name" placeholder="Add a name..." required style="flex:1;margin:0"/>' +
       '<button type="submit" class="btn btn-green" style="width:auto;padding:8px 16px;margin:0">Add</button>' +
