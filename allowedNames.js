@@ -30,4 +30,4 @@ const allowedNames = new Set([
 'kuba','michalrapala','mynewlife','mindmat','rycer','heinz23','madlen91','filippaluch','parkasiewicz','emigarbien',
 'drwal','twszolek','sanuich','dominicus','lorenzo','klararaptusiewicz','pawianywychodzazesciany','olek','ambrozy','luc' , 'hivedocu' , 'sztukahbd'
 ]);
-module.exports = allowedNames;
+module.exports = { allowedNames };
