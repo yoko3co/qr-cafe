@@ -157,8 +157,12 @@ app.get('/generate', async function(req, res) {
     '<h1>QR Code</h1>' +
     '<h2>Scan to Check In</h2>' +
     '<img src="' + qr + '" style="width:250px;height:250px;border-radius:12px;margin:12px 0"/>' +
-    '<p style="font-size:13px;color:#555">Auto-refreshes every minute</p>' +
-    '<script>setTimeout(function(){window.location.reload();}, 60000);</script>'
+    '<p style="font-size:13px;color:#555">Session valid for 1 hour</p>' +
+    '<a class="link" href="/generate">New QR code</a>' +
+    '<a class="link" href="/check?session=' + sid + '">Direct check-in link (desktop test)</a>' +
+    '<a class="link" href="/leaderboard">Leaderboard</a>' +
+    '<a class="link" href="/votes">Film votes</a>' +
+    '<a class="link" href="/events">Wydarzenia</a>' 
   ));
 });
 
