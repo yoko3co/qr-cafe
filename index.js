@@ -160,18 +160,20 @@ app.get('/', function(req, res) {
     '<a href="hive://browser?url=' + encodeURIComponent(BASE_URL + '/') + '" class="btn btn-blue" id="open-keychain">Open in Keychain App</a>' +
     '<script>' +
     'if(typeof window.hive_keychain !== "undefined"){' +
-      'document.getElementById("open-keychain").style.display="none";' +
+  'document.getElementById("open-keychain").style.display="none";' +
+  'document.getElementById("hive-username").style.display="none";' +
+  'window.hive_keychain.requestSignBuffer(null,"qrcafe-checkin-' + session + '","Posting",function(res){' +
+    'if(res.success){window.location.href="/hive-checkin?session=' + session + '&user="+encodeURIComponent(res.data.username);}' +
+    'else{' +
       'var btn=document.createElement("button");' +
-      'btn.className="btn btn-blue";' +
-      'btn.innerText="Login with Hive Keychain";' +
-      'btn.onclick=function(){' +
-        'var u=document.getElementById("hive-username").value.trim().toLowerCase();' +
-        'if(!u) return alert("Enter your Hive username");' +
-        'window.hive_keychain.requestSignBuffer(u,"qrcafe-login","Posting",function(res){' +
-          'if(res.success){window.location.href="/home?user=HIVE:"+encodeURIComponent(res.data.username);}' +
-          'else{alert("Error: "+res.message);}' +
-        '});' +
-      '};' +
+      'btn.className="btn btn-green";' +
+      'btn.innerText="Try again";' +
+      'btn.onclick=function(){window.location.reload();};' +
+      'document.getElementById("open-keychain").parentNode.insertBefore(btn,document.getElementById("open-keychain").nextSibling);' +
+      'alert("Error: "+res.message);' +
+    '}' +
+  '});' +
+'}' +
       'document.getElementById("open-keychain").insertAdjacentElement("afterend",btn);' +
     '}' +
     '</script>' +
