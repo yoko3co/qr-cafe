@@ -540,6 +540,37 @@ app.get('/has-redirect', function(req, res) {
     '</script>' +
     '</body></html>');
 });
+app.get('/hive-checkin', function(req, res) {
+  const session = req.query.session;
+  const name = (req.query.user || '').trim().toLowerCase();
+  const s = sessions.get(session);
+  if (!s || Date.now() > s.expiresAt) return res.redirect('/check?session=' + session + '&error=' + encodeURIComponent('Session expired'));
+  if (!isAllowed(name)) return res.redirect('/check?session=' + session + '&error=' + encodeURIComponent('Your name is not on the guest list'));
+  const key = 'HIVE:' + name;
+  if (!users.has(key)) users.set(key, { name: name, lastVisit: 0, points: 0, voted: null });
+  const data = users.get(key);
+  if (data.lastVisit && Date.now() - data.lastVisit < DAY) {
+    const next = new Date(data.lastVisit + DAY).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    return res.send(page('Already Checked In',
+      '<h1>Already checked in!</h1>' +
+      '<p>Hey <strong>' + data.name + '</strong>, come back after <strong>' + next + '</strong>.</p>' +
+      '<div class="badge">' + data.points + ' points</div>' +
+      '<a href="/vote?key=' + encodeURIComponent(key) + '" class="btn btn-gold" style="margin-top:8px">Vote for a film!</a>' +
+      '<a class="link" href="/leaderboard">Leaderboard</a>'
+    ));
+  }
+  data.lastVisit = Date.now();
+  data.points += 1.1;
+  users.set(key, data);
+  res.send(page('Welcome!',
+    '<h1>Witamy w Krolestwie!</h1>' +
+    '<h2>Welcome, ' + data.name + '!</h2>' +
+    '<p>Checked in with Hive Keychain!</p>' +
+    '<div class="badge">+1.1 points (Hive bonus!) - Total: ' + data.points.toFixed(1) + '</div>' +
+    '<a href="/vote?key=' + encodeURIComponent(key) + '" class="btn btn-gold" style="margin-top:8px">Vote for tonight\'s film!</a>' +
+    '<a class="link" href="/leaderboard">Leaderboard</a>'
+  ));
+});
 app.listen(PORT, function() {
   console.log('QR Cafe ' + VERSION + ' running at ' + BASE_URL);
   console.log('Admin: ' + BASE_URL + ADMIN_URL);
