@@ -10,7 +10,7 @@ const BASE_URL = process.env.BASE_URL || 'https://qr-cafe-shh2.onrender.com';
 const ADMIN_URL = '/hallmann';
 const VERSION = 'Krolestwo.2.1';
 const HIVE_ACCOUNT = 'test3333';
-const ADMIN_ACCOUNTS = ['hallmann', 'hivedocu'];
+const ADMIN_ACCOUNTS = ['hallmann', 'hivedocu', 'test3333' ];
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -84,7 +84,7 @@ function isAllowed(name) { return allowedNames.has(name.trim().toLowerCase()); }
 function isAdmin(name) { return ADMIN_ACCOUNTS.includes((name || '').trim().toLowerCase()); }
 
 function checkAdminToken(req, res) {
-  const token = req.query.admin;
+  const token = req.query.admin || (req.body && req.body.admin);
   if (!token || !adminSessions.has(token)) { res.redirect(ADMIN_URL); return false; }
   return token;
 }
