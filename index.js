@@ -207,8 +207,7 @@ app.get('/qr', async function(req, res) {
   const token = req.query.admin;
   if (!adminSessions.has(token)) return res.redirect(ADMIN_URL);
   const sid = crypto.randomUUID();
-  const event = req.query.event || 'none';
-sessions.set(sid, { expiresAt: Date.now() + SESSION_TTL, event: event });
+  sessions.set(sid, { expiresAt: Date.now() + SESSION_TTL });
   const url = BASE_URL + '/check?session=' + sid;
   const qr = await QRCode.toDataURL(url, { width: 320, margin: 2 });
   res.send('<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
@@ -269,7 +268,8 @@ app.get('/hive-checkin', function(req, res) {
   if (!s || Date.now() > s.expiresAt) return res.redirect('/check?session=' + session + '&error=' + encodeURIComponent('Session expired'));
   if (!isAllowed(name)) return res.redirect('/check?session=' + session + '&error=' + encodeURIComponent('Your name is not on the guest list'));
   const key = 'HIVE:' + name;
-if (!users.has(key)) users.set(key, { name: name, points: 0, book: 0, games: 0, volunteers: 0, film: 0, lastVisit: 0, voted: {}, randomPresses: 0, randomDay: 0 });  const data = users.get(key);
+  if (!users.has(key)) users.set(key, { name: name, points: 0, lastVisit: 0, voted: {}, randomPresses: 0, randomDay: 0 });
+  const data = users.get(key);
   if (data.lastVisit && Date.now() - data.lastVisit < DAY) {
     const next = new Date(data.lastVisit + DAY).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     return res.send(page('Already Checked In',
@@ -280,16 +280,13 @@ if (!users.has(key)) users.set(key, { name: name, points: 0, book: 0, games: 0, 
     ));
   }
   data.lastVisit = Date.now();
-const eventType = s.event || 'none';
-if (eventType === 'book') data.book = (data.book || 0) + 1;
-if (eventType === 'games') data.games = (data.games || 0) + 1;
-if (eventType === 'volunteers') data.volunteers = (data.volunteers || 0) + 1;
-if (eventType === 'film') data.film = (data.film || 0) + 1;  users.set(key, data);
+  data.points = (data.points || 0) + 1;
+  users.set(key, data);
   res.send(page('Welcome!',
     '<h1>Witamy w Krolestwie!</h1>' +
     '<h2>Welcome, ' + data.name + '!</h2>' +
     '<p>Checked in with Hive Keychain!</p>' +
-    '<div class="badge">+1 point' + (s.event && s.event !== 'none' ? ' +1 ' + s.event.charAt(0).toUpperCase() + s.event.slice(1) + ' coin' : '') + ' - Total: ' + data.points.toFixed(1) + '</div>' +
+    '<div class="badge">+1 point - Total: ' + data.points.toFixed(1) + '</div>' +
     navBar(key)
   ));
 });
@@ -297,28 +294,16 @@ if (eventType === 'film') data.film = (data.film || 0) + 1;  users.set(key, data
 // ==================== LEADERBOARD ====================
 
 app.get('/leaderboard', function(req, res) {
-const type = req.query.type || 'points';
-const sorted = Array.from(users.values()).sort(function(a, b) { return (b[type] || 0) - (a[type] || 0); }).slice(0, 20);  const medals = ['1st', '2nd', '3rd'];
+  const sorted = Array.from(users.values()).sort(function(a, b) { return b.points - a.points; }).slice(0, 20);
+  const medals = ['1st', '2nd', '3rd'];
   let rows = sorted.length === 0 ? '<tr><td colspan="3" style="color:#555;padding:20px;text-align:center">No players yet</td></tr>' : '';
   sorted.forEach(function(u, i) {
-  rows += `
-<tr>
-  <td style="color:#fbbf24;font-weight:700">${medals[i] || i + 1}</td>
-  <td>${u.name}</td>
-  <td style="color:#fbbf24;font-weight:700">${(u.points || 0).toFixed(1)} pts</td>
-  <td style="color:#fbbf24;font-weight:700">${u[type] || 0}</td>
-rows += '<tr><td style="color:#fbbf24;font-weight:700">' + (medals[i] || i + 1) + '</td><td>' + u.name + '</td><td style="color:#fbbf24;font-weight:700">' + (u[type] || 0) + '</td></tr>';  });
+    rows += '<tr><td style="color:#fbbf24;font-weight:700">' + (medals[i] || i + 1) + '</td><td>' + u.name + '</td><td style="color:#fbbf24;font-weight:700">' + (u.points || 0).toFixed(1) + ' pts</td></tr>';
+  });
   res.send(page('Leaderboard',
     '<h1>Leaderboard</h1>' +
     '<h2>Top Players</h2>' +
-    '<table><tr><th>#</th><th>Player</th><th>Points</th></tr>' + rows + '</'<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">' +
-  '<a href="/leaderboard" class="btn btn-gold btn-sm">Points</a>' +
-  '<a href="/leaderboard?type=book" class="btn btn-gray btn-sm">Book</a>' +
-  '<a href="/leaderboard?type=games" class="btn btn-gray btn-sm">Games</a>' +
-  '<a href="/leaderboard?type=volunteers" class="btn btn-gray btn-sm">Volunteers</a>' +
-  '<a href="/leaderboard?type=film" class="btn btn-gray btn-sm">Film</a>' +
-'</div>' +
-'<table><tr><th>#</th><th>Player</th><th>' + (req.query.type || 'Points') + '</th></tr>' + rows + '</table>' +
+    '<table><tr><th>#</th><th>Player</th><th>Points</th></tr>' + rows + '</table>' +
     '<a class="link" href="/">Back</a>'
   ));
 });
@@ -563,17 +548,7 @@ app.get(ADMIN_URL + '/panel', function(req, res) {
     (msg ? '<div class="' + (isError ? 'error' : 'success') + '">' + msg + '</div>' : '') +
 
     '<hr>' +
-    '<form method="GET" action="/qr" style="margin-bottom:0">' +
-'<input type="hidden" name="admin" value="' + token + '"/>' +
-'<select name="event" style="width:100%;padding:12px;font-size:15px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;margin-bottom:8px">' +
-'<option value="none">No event - standard point only</option>' +
-'<option value="book">Book Club - +1 Book coin</option>' +
-'<option value="games">Board Games - +1 Games coin</option>' +
-'<option value="volunteers">Volunteers - +1 Volunteers coin</option>' +
-'<option value="film">Film Club - +1 Film coin</option>' +
-'</select>' +
-'<button type="submit" class="btn btn-green">Generate QR Code</button>' +
-'</form>' +
+    '<a href="/qr' + a + '" class="btn btn-green">Generate QR Code</a>' +
     '<hr>' +
 '<h2 style="text-align:left;margin-bottom:12px">Blockchain Voting</h2>' +
 '<p style="text-align:left;color:#aaa;font-size:13px">Currently: <strong style="color:' + (blockchainVoting ? '#4ade80' : '#f87171') + '">' + (blockchainVoting ? 'ON — votes stored on Hive chain' : 'OFF — votes stored locally') + '</strong></p>' +
