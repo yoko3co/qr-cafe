@@ -167,8 +167,23 @@ app.get('/check', function(req, res) {
 '</form>' +
 '<hr>' +
 '<p style="font-size:13px;color:#666">Have a Hive account?</p>' +
-'<a href="hive://browser?url=' + encodeURIComponent(BASE_URL + '/check?session=' + session) + '" class="btn btn-blue">Open in Keychain App</a>' +
+'<a href="hive://browser?url=' + encodeURIComponent(BASE_URL + '/check?session=' + session) + '" class="btn btn-blue" id="open-keychain">Open in Keychain App</a>' +
 '<p style="font-size:11px;color:#555;margin-top:8px">Opens your check-in page inside Keychain browser</p>' +
+'<script>' +
+'if(typeof window.hive_keychain !== "undefined"){' +
+  'document.getElementById("open-keychain").style.display="none";' +
+  'var username = null;' +
+  'window.hive_keychain.requestHandshake(function(){' +
+    'window.hive_keychain.requestSignBuffer(null,"qrcafe-checkin-' + session + '","Posting",function(res){' +
+      'if(res.success){' +
+        'window.location.href="/hive-checkin?session=' + session + '&user="+encodeURIComponent(res.data.username);' +
+      '} else {' +
+        'alert("Keychain error: "+res.message);' +
+      '}' +
+    '});' +
+  '});' +
+'}' +
+'</script>'
 '<div id="has-status" style="margin-top:10px;font-size:13px;color:#aaa"></div>' +
 '<a id="keychain-link" href="#" style="display:none;margin-top:8px" class="btn btn-gold">Open Keychain App</a>' +
 '<a class="link" href="/leaderboard">Leaderboard</a>' +
