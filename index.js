@@ -167,8 +167,8 @@ app.get('/check', function(req, res) {
 '</form>' +
 '<hr>' +
 '<p style="font-size:13px;color:#666">Have a Hive account?</p>' +
-'<input type="text" id="hive-username" placeholder="Your Hive username" style="margin-bottom:8px"/>' +
-'<button class="btn btn-blue" onclick="hasLogin()">Login with Hive Keychain</button>' +
+'<a href="hive://browser?url=' + encodeURIComponent(BASE_URL + '/check?session=' + session) + '" class="btn btn-blue">Open in Keychain App</a>' +
+'<p style="font-size:11px;color:#555;margin-top:8px">Opens your check-in page inside Keychain browser</p>' +
 '<div id="has-status" style="margin-top:10px;font-size:13px;color:#aaa"></div>' +
 '<a id="keychain-link" href="#" style="display:none;margin-top:8px" class="btn btn-gold">Open Keychain App</a>' +
 '<a class="link" href="/leaderboard">Leaderboard</a>' +
