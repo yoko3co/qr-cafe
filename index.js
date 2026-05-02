@@ -8,32 +8,32 @@ const DAY = 24 * 60 * 60 * 1000;
 const SESSION_TTL = 60 * 60 * 1000;
 const BASE_URL = process.env.BASE_URL || 'https://qr-cafe-shh2.onrender.com';
 const ADMIN_URL = '/hallmann';
-const VERSION = 'Krolestwo.0.4';
+const VERSION = 'Krolestwo.1.0';
 const HIVE_ACCOUNT = 'test3333';
+const ADMIN_ACCOUNTS = ['hallmann', 'hivedocu'];
 
 app.use(express.urlencoded({ extended: true }));
-app.use(function(req, res, next) {
-res.setHeader('Content-Security-Policy', "default-src 'self' 'unsafe-eval' 'unsafe-inline' wss://hive-auth.arcange.eu https: data:");
-  next();
-});
 app.use(express.json());
-app.get('/has.js', function(req, res) {
-  res.sendFile(__dirname + '/has.js');
+app.use(function(req, res, next) {
+  res.setHeader('Content-Security-Policy', "default-src 'self' 'unsafe-eval' 'unsafe-inline' wss://hive-auth.arcange.eu https: data:");
+  next();
 });
 
 // ==================== STORAGE ====================
 
 const sessions = new Map();
 const users = new Map();
-const votes = { a: 0, b: 0, c: 0, d: 0 };
+const adminSessions = new Set();
+const polls = new Map();
+
 const films = {
   a: 'Szklana Pulapka',
   b: 'Speed',
   c: 'Die Hard',
   d: 'Straznik Teksasu'
 };
-const pendingAuths = new Map(); // uuid -> { username, status, deeplink }
-const allowedNames = new Set(['marek', 'rafal', 'anna', 'piotr', 'sztukahbd', 'test3333']);
+
+const allowedNames = new Set(['marek', 'rafal', 'anna', 'piotr', 'sztukahbd', 'test3333', 'hallmann', 'hivedocu']);
 
 // ==================== HIVE SYNC ====================
 
@@ -42,24 +42,20 @@ async function fetchAllowedNames() {
     const res = await fetch('https://api.hive.blog', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        method: 'condenser_api.get_accounts',
-        params: [[HIVE_ACCOUNT]],
-        id: 1
-      })
+      body: JSON.stringify({ jsonrpc: '2.0', method: 'condenser_api.get_accounts', params: [[HIVE_ACCOUNT]], id: 1 })
     });
     const data = await res.json();
     const meta = JSON.parse(data.result[0].posting_json_metadata || '{}');
     if (meta.allowed_names && Array.isArray(meta.allowed_names)) {
       allowedNames.clear();
       meta.allowed_names.forEach(function(n) { allowedNames.add(n.toLowerCase()); });
+      ADMIN_ACCOUNTS.forEach(function(a) { allowedNames.add(a); });
       console.log('Names loaded from Hive:', [...allowedNames]);
     } else {
       console.log('No allowed_names in Hive profile, using defaults');
     }
   } catch (e) {
-    console.log('Hive fetch failed, using existing names:', e.message);
+    console.log('Hive fetch failed:', e.message);
   }
 }
 
@@ -68,24 +64,24 @@ setInterval(fetchAllowedNames, 5 * 60 * 1000);
 
 // ==================== HELPERS ====================
 
-function userKey(name, pin) {
-  return name.trim().toLowerCase() + ':' + pin.trim();
-}
-
-function isAllowed(name) {
-  return allowedNames.has(name.trim().toLowerCase());
+function userKey(name, pin) { return name.trim().toLowerCase() + ':' + pin.trim(); }
+function isAllowed(name) { return allowedNames.has(name.trim().toLowerCase()); }
+function isAdmin(name) { return ADMIN_ACCOUNTS.includes((name || '').trim().toLowerCase()); }
+function isAdminSession(req) {
+  const token = req.query.admin || req.cookies && req.cookies.admin;
+  return adminSessions.has(token);
 }
 
 // ==================== PAGE TEMPLATE ====================
 
-function page(title, body) {
+function page(title, body, wide) {
   return '<!DOCTYPE html><html lang="en"><head>' +
     '<meta charset="UTF-8">' +
     '<meta name="viewport" content="width=device-width, initial-scale=1">' +
     '<title>' + title + ' | QR Cafe</title>' +
     '<style>' +
       'body{font-family:Arial,sans-serif;background:#1a1a2e;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px;box-sizing:border-box}' +
-      '.card{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:20px;padding:40px 32px;max-width:480px;width:100%;text-align:center;position:relative}' +
+      '.card{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:20px;padding:40px 32px;max-width:' + (wide ? '700px' : '480px') + ';width:100%;text-align:center;position:relative}' +
       '.version{position:absolute;bottom:12px;right:16px;font-size:11px;color:rgba(255,255,255,0.25)}' +
       'h1{font-size:2rem;margin:0 0 8px}' +
       'h2{font-size:1.3rem;color:#e0e0e0;margin:0 0 16px}' +
@@ -96,6 +92,7 @@ function page(title, body) {
       '.btn-gold{background:#fbbf24;color:#1c0a00}' +
       '.btn-red{background:#f87171;color:#2d0000}' +
       '.btn-blue{background:#60a5fa;color:#0c1a3a}' +
+      '.btn-gray{background:rgba(255,255,255,0.1);color:#fff}' +
       '.btn-sm{padding:6px 14px;font-size:13px;width:auto;display:inline-block;margin:2px}' +
       '.badge{display:inline-block;background:#fbbf24;color:#1c0a00;border-radius:999px;padding:6px 20px;font-weight:700;font-size:16px;margin-bottom:16px}' +
       '.error{color:#f87171;background:rgba(248,113,113,0.1);padding:10px;border-radius:8px;margin-bottom:12px;font-size:14px}' +
@@ -112,41 +109,50 @@ function page(title, body) {
     '</style>' +
     '</head><body><div class="card">' +
     body +
-
-'<div style="margin-top:20px">' +
-  '<a href="https://www.instagram.com/krolestwo.bez.kresu/" target="_blank" style="margin:0 8px;text-decoration:none;font-size:20px">📸📸📸📸</a>' +
-  '<a href="https://www.facebook.com/herberciarnia" target="_blank" style="margin:0 8px;text-decoration:none;font-size:20px">📘📘📘</a>' +
-'</div>' +
-
-'<span class="version">' + VERSION + '</span>' +
+    '<div style="margin-top:20px">' +
+      '<a href="https://www.instagram.com/krolestwo.bez.kresu/" target="_blank" style="margin:0 8px;text-decoration:none;font-size:20px">📸</a>' +
+      '<a href="https://www.facebook.com/herberciarnia" target="_blank" style="margin:0 8px;text-decoration:none;font-size:20px">📘</a>' +
+    '</div>' +
+    '<span class="version">' + VERSION + '</span>' +
     '</div></body></html>';
 }
 
-// ==================== ROUTES ====================
+// ==================== HOME (USERS) ====================
 
-app.get('/', function(req, res) { res.redirect('/generate'); });
-
-// -------------------- Generate QR --------------------
-
-app.get('/generate', async function(req, res) {
-  const sid = crypto.randomUUID();
-  sessions.set(sid, { expiresAt: Date.now() + SESSION_TTL });
-  const url = BASE_URL + '/check?session=' + sid;
-  const qr = await QRCode.toDataURL(url, { width: 280, margin: 2 });
-  res.send(page('QR Code',
+app.get('/', function(req, res) {
+  res.send(page('QR Cafe',
     '<h1>QR Cafe</h1>' +
-    '<h2>Scan to Check In</h2>' +
-    '<img src="' + qr + '" style="width:250px;height:250px;border-radius:12px;margin:12px 0"/>' +
-    '<p style="font-size:13px;color:#555">Session valid for 1 hour</p>' +
-    '<a class="link" href="/generate">New QR code</a>' +
-    '<a class="link" href="/check?session=' + sid + '">Direct check-in link (desktop test)</a>' +
-    '<a class="link" href="/leaderboard">Leaderboard</a>' +
-    '<a class="link" href="/votes">Film votes</a>' +
-    '<a class="link" href="/events">Wydarzenia</a>' 
+    '<h2>Witamy w Krolestwie!</h2>' +
+    '<a href="/leaderboard" class="btn btn-gold" style="margin-top:8px">Leaderboard</a>' +
+    '<a href="/polls" class="btn btn-blue" style="margin-top:8px">Polls & Votes</a>' +
+    '<a href="/events" class="btn btn-gray" style="margin-top:8px">Wydarzenia</a>'
   ));
 });
 
-// -------------------- Check In GET --------------------
+// ==================== QR DISPLAY (tablet only, no nav) ====================
+
+app.get('/qr', async function(req, res) {
+  const token = req.query.admin;
+  if (!adminSessions.has(token)) return res.redirect(ADMIN_URL);
+  const sid = crypto.randomUUID();
+  sessions.set(sid, { expiresAt: Date.now() + SESSION_TTL });
+  const url = BASE_URL + '/check?session=' + sid;
+  const qr = await QRCode.toDataURL(url, { width: 320, margin: 2 });
+  res.send('<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<style>body{background:#1a1a2e;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;flex-direction:column;font-family:Arial,sans-serif;color:#fff}' +
+    'h1{font-size:2rem;margin-bottom:8px}h2{color:#aaa;font-size:1rem;margin-bottom:20px}' +
+    '.version{position:fixed;bottom:12px;right:16px;font-size:11px;color:rgba(255,255,255,0.2)}</style>' +
+    '<script>setTimeout(function(){window.location.reload();},60000);</script>' +
+    '</head><body>' +
+    '<h1>QR Cafe</h1>' +
+    '<h2>Scan to check in</h2>' +
+    '<img src="' + qr + '" style="width:300px;height:300px;border-radius:16px"/>' +
+    '<p style="color:#555;font-size:13px;margin-top:16px">Refreshes every minute</p>' +
+    '<span class="version">' + VERSION + '</span>' +
+    '</body></html>');
+});
+
+// ==================== CHECK IN ====================
 
 app.get('/check', function(req, res) {
   const session = req.query.session;
@@ -160,76 +166,33 @@ app.get('/check', function(req, res) {
     '<p>First time? Enter your name and choose a PIN.<br>Returning? Use the same name and PIN.</p>' +
     (error ? '<div class="error">' + error + '</div>' : '') +
     '<form method="POST" action="/check">' +
-  '<input type="hidden" name="session" value="' + session + '"/>' +
-  '<input type="text" name="name" placeholder="Your name" required maxlength="30" autocomplete="off"/>' +
-  '<input type="password" name="pin" placeholder="PIN (4 digits)" required maxlength="6" inputmode="numeric"/>' +
-  '<button class="btn btn-green" type="submit">Check In with PIN</button>' +
-'</form>' +
-'<hr>' +
-'<p style="font-size:13px;color:#666">Have a Hive account?</p>' +
-'<a href="hive://browser?url=' + encodeURIComponent(BASE_URL + '/check?session=' + session) + '" class="btn btn-blue" id="open-keychain">Open in Keychain App</a>' +
-'<p style="font-size:11px;color:#555;margin-top:8px">Opens your check-in page inside Keychain browser</p>' +
-'<script>' +
-'if(typeof window.hive_keychain !== "undefined"){' +
-  'document.getElementById("open-keychain").style.display="none";' +
-  'var btn = document.createElement("button");' +
-  'btn.className = "btn btn-blue";' +
-  'btn.innerText = "Sign in with Keychain";' +
-  'btn.onclick = function(){' +
-    'window.hive_keychain.requestSignBuffer(null,"qrcafe-checkin-' + session + '","Posting",function(res){' +
-      'if(res.success){' +
-        'window.location.href="/hive-checkin?session=' + session + '&user="+encodeURIComponent(res.data.username);' +
-      '} else {' +
-        'alert("Error: "+res.message);' +
-      '}' +
-    '});' +
-  '};' +
-  'document.getElementById("open-keychain").parentNode.insertBefore(btn, document.getElementById("open-keychain").nextSibling);' +
-'}' +
-'</script>' +
-'<div id="has-status" style="margin-top:10px;font-size:13px;color:#aaa"></div>' +
-'<a id="keychain-link" href="#" style="display:none;margin-top:8px" class="btn btn-gold">Open Keychain App</a>' +
-'<a class="link" href="/leaderboard">Leaderboard</a>' +
-'<a class="link" href="/events">Wydarzenia</a>' +
-'<script>' +
-'var pollInterval, currentUuid;' +
-'function hasLogin(){' +
-  'var username = document.getElementById("hive-username").value.trim().toLowerCase();' +
-  'if(!username) return alert("Please enter your Hive username");' +
-  'document.getElementById("has-status").innerText = "Connecting to Hive...";' +
-  'fetch("/has-init", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({username:username, session:"' + session + '"})})' +
-  '.then(function(r){return r.json();})' +
-  '.then(function(d){' +
-    'if(!d.ok) return alert("Connection failed");' +
-    'currentUuid = d.uuid;' +
-    'pollInterval = setInterval(function(){' +
-      'fetch("/has-status?uuid=" + currentUuid)' +
-      '.then(function(r){return r.json();})' +
-      '.then(function(d){' +
-        'if(d.deeplink && document.getElementById("keychain-link").style.display === "none"){' +
-   'var encoded = d.deeplink.replace("has://auth_req/","");' +
-'document.getElementById("keychain-link").href = "/has-redirect?payload=" + encoded;' +
-          'document.getElementById("keychain-link").style.display = "block";' +
-          'document.getElementById("has-status").innerText = "Tap below to open Keychain!";' +
-        '}' +
-        'if(d.status === "approved"){' +
-          'clearInterval(pollInterval);' +
-          'document.getElementById("has-status").innerText = "Approved! Checking in...";' +
-          'window.location.href = "/hive-checkin?session=' + session + '&user=" + encodeURIComponent(d.username);' +
-        '}' +
-        'if(d.status === "rejected"){' +
-          'clearInterval(pollInterval);' +
-          'document.getElementById("has-status").innerText = "Rejected. Please try again.";' +
-        '}' +
-      '});' +
-    '}, 2000);' +
-  '});' +
-'}' +
-'</script>'
+      '<input type="hidden" name="session" value="' + session + '"/>' +
+      '<input type="text" name="name" placeholder="Your name" required maxlength="30" autocomplete="off"/>' +
+      '<input type="password" name="pin" placeholder="PIN (4 digits)" required maxlength="6" inputmode="numeric"/>' +
+      '<button class="btn btn-green" type="submit">Check In with PIN</button>' +
+    '</form>' +
+    '<hr>' +
+    '<p style="font-size:13px;color:#666">Have Hive Keychain?</p>' +
+    '<a href="hive://browser?url=' + encodeURIComponent(BASE_URL + '/check?session=' + session) + '" class="btn btn-blue" id="open-keychain">Open in Keychain App</a>' +
+    '<a class="link" href="/leaderboard">Leaderboard</a>' +
+    '<script>' +
+    'if(typeof window.hive_keychain !== "undefined"){' +
+      'document.getElementById("open-keychain").style.display="none";' +
+      'var btn=document.createElement("button");' +
+      'btn.className="btn btn-blue";' +
+      'btn.style.marginTop="6px";' +
+      'btn.innerText="Sign in with Keychain";' +
+      'btn.onclick=function(){' +
+        'window.hive_keychain.requestSignBuffer(null,"qrcafe-checkin-' + session + '","Posting",function(res){' +
+          'if(res.success){window.location.href="/hive-checkin?session=' + session + '&user="+encodeURIComponent(res.data.username);}' +
+          'else{alert("Error: "+res.message);}' +
+        '});' +
+      '};' +
+      'document.getElementById("open-keychain").parentNode.insertBefore(btn,document.getElementById("open-keychain").nextSibling);' +
+    '}' +
+    '</script>'
   ));
 });
-
-// -------------------- Check In POST --------------------
 
 app.post('/check', function(req, res) {
   const session = req.body.session;
@@ -244,7 +207,7 @@ app.post('/check', function(req, res) {
   for (const [k, v] of users.entries()) {
     if (v.name.toLowerCase() === name.toLowerCase() && k !== key) return res.redirect('/check?session=' + session + '&error=' + encodeURIComponent('Wrong PIN for this name'));
   }
-  if (!users.has(key)) users.set(key, { name: name, lastVisit: 0, points: 0, voted: null });
+  if (!users.has(key)) users.set(key, { name: name, lastVisit: 0, points: 0, voted: {} });
   const data = users.get(key);
   if (data.lastVisit && Date.now() - data.lastVisit < DAY) {
     const next = new Date(data.lastVisit + DAY).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -252,7 +215,7 @@ app.post('/check', function(req, res) {
       '<h1>Already checked in!</h1>' +
       '<p>Hey <strong>' + data.name + '</strong>, come back after <strong>' + next + '</strong>.</p>' +
       '<div class="badge">' + data.points + ' points</div>' +
-      '<a href="/vote?key=' + encodeURIComponent(key) + '" class="btn btn-gold" style="margin-top:8px">Vote for a film!</a>' +
+      '<a href="/polls" class="btn btn-gold" style="margin-top:8px">Go to Polls</a>' +
       '<a class="link" href="/leaderboard">Leaderboard</a>'
     ));
   }
@@ -264,71 +227,98 @@ app.post('/check', function(req, res) {
     '<h2>Welcome, ' + data.name + '!</h2>' +
     '<p>Great to have you here today!</p>' +
     '<div class="badge">+1 point - Total: ' + data.points + '</div>' +
-    '<a href="/vote?key=' + encodeURIComponent(key) + '" class="btn btn-gold" style="margin-top:8px">Vote for tonight\'s film!</a>' +
+    '<a href="/polls" class="btn btn-gold" style="margin-top:8px">Vote in polls!</a>' +
     '<a class="link" href="/leaderboard">Leaderboard</a>'
   ));
 });
 
-// -------------------- Vote GET --------------------
+// ==================== HIVE CHECKIN ====================
 
-app.get('/vote', function(req, res) {
-  const key = req.query.key;
+app.get('/hive-checkin', function(req, res) {
+  const session = req.query.session;
+  const name = (req.query.user || '').trim().toLowerCase();
+  const s = sessions.get(session);
+  if (!s || Date.now() > s.expiresAt) return res.redirect('/check?session=' + session + '&error=' + encodeURIComponent('Session expired'));
+  if (!isAllowed(name)) return res.redirect('/check?session=' + session + '&error=' + encodeURIComponent('Your name is not on the guest list'));
+  const key = 'HIVE:' + name;
+  if (!users.has(key)) users.set(key, { name: name, lastVisit: 0, points: 0, voted: {} });
   const data = users.get(key);
-  if (!data) return res.send(page('Vote', '<h1>Check in first!</h1><p>Please scan the QR code to check in.</p>'));
-  const alreadyVoted = data.voted;
-  let btns = '';
-  for (const id in films) {
-    const isVoted = alreadyVoted === id;
-    btns += '<button style="display:block;width:100%;padding:13px 15px;margin-bottom:10px;font-size:15px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);text-align:left;cursor:pointer;background:' + (isVoted ? '#4ade80' : 'rgba(255,255,255,0.08)') + ';color:' + (isVoted ? '#052e16' : '#fff') + ';" ' + (alreadyVoted ? 'disabled' : 'onclick="vote(\'' + id + '\')"') + '>' + (isVoted ? 'Voted: ' : '') + films[id] + '</button>';
+  if (data.lastVisit && Date.now() - data.lastVisit < DAY) {
+    const next = new Date(data.lastVisit + DAY).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    return res.send(page('Already Checked In',
+      '<h1>Already checked in!</h1>' +
+      '<p>Hey <strong>' + data.name + '</strong>, come back after <strong>' + next + '</strong>.</p>' +
+      '<div class="badge">' + data.points + ' points</div>' +
+      '<a href="/polls" class="btn btn-gold" style="margin-top:8px">Go to Polls</a>' +
+      '<a class="link" href="/leaderboard">Leaderboard</a>'
+    ));
   }
-  res.send(page('Vote',
-    '<h1>Film of the night</h1>' +
-    '<h2>' + (alreadyVoted ? 'You voted!' : 'Which film tonight?') + '</h2>' +
-    '<p>' + (alreadyVoted ? 'You voted for <strong>' + films[alreadyVoted] + '</strong>. Thank you!' : 'Hey <strong>' + data.name + '</strong>! Pick your favourite:') + '</p>' +
-    btns +
-    '<a class="link" href="/votes">See vote results</a>' +
-    '<a class="link" href="/leaderboard">Leaderboard</a>' +
-    '<script>function vote(id){fetch("/vote",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:"' + key + '",id:id})}).then(function(r){return r.json();}).then(function(d){if(d.ok)window.location.reload();else alert(d.error||"Error");});}</script>'
-  ));
-});
-
-// -------------------- Vote POST --------------------
-
-app.post('/vote', function(req, res) {
-  const key = req.body.key;
-  const id = req.body.id;
-  const data = users.get(key);
-  if (!data) return res.json({ ok: false, error: 'User not found' });
-  if (data.voted) return res.json({ ok: false, error: 'Already voted!' });
-  if (!films[id]) return res.json({ ok: false, error: 'Invalid choice' });
-  data.voted = id;
-  votes[id]++;
+  data.lastVisit = Date.now();
+  data.points += 1.1;
   users.set(key, data);
-  res.json({ ok: true });
-});
-
-// -------------------- Vote Results --------------------
-
-app.get('/votes', function(req, res) {
-  const total = Object.values(votes).reduce(function(a, b) { return a + b; }, 0);
-  let bars = '';
-  for (const id in films) {
-    const count = votes[id];
-    const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-    bars += '<div style="margin-bottom:18px;text-align:left"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>' + films[id] + '</span><span style="color:#fbbf24;font-weight:700">' + count + ' votes (' + pct + '%)</span></div><div class="bar-wrap"><div class="bar" style="width:' + pct + '%"></div></div></div>';
-  }
-  res.send(page('Vote Results',
-    '<h1>Vote Results</h1>' +
-    '<h2>Film of the night</h2>' +
-    '<p>' + total + ' total votes</p>' +
-    '<hr>' + bars + '<hr>' +
-    '<a class="link" href="/leaderboard">Leaderboard</a>' +
-    '<a class="link" href="/generate">QR Generator</a>' +
-    '<a class="link" href="/events">Wydarzenia</a>' 
+  res.send(page('Welcome!',
+    '<h1>Witamy w Krolestwie!</h1>' +
+    '<h2>Welcome, ' + data.name + '!</h2>' +
+    '<p>Checked in with Hive Keychain!</p>' +
+    '<div class="badge">+1.1 points (Hive bonus!) - Total: ' + data.points.toFixed(1) + '</div>' +
+    '<a href="/polls" class="btn btn-gold" style="margin-top:8px">Vote in polls!</a>' +
+    '<a class="link" href="/leaderboard">Leaderboard</a>'
   ));
 });
 
-// -------------------- Leaderboard --------------------
+// ==================== POLLS ====================
+
+app.get('/polls', function(req, res) {
+  let pollHtml = '';
+  if (polls.size === 0) {
+    pollHtml = '<p style="color:#555">No active polls yet.</p>';
+  } else {
+    polls.forEach(function(poll, pid) {
+      pollHtml += '<div style="text-align:left;margin-bottom:20px;background:rgba(255,255,255,0.05);padding:16px;border-radius:12px">' +
+        '<strong>' + poll.question + '</strong><br/><br/>';
+      poll.options.forEach(function(opt, i) {
+        pollHtml += '<a href="/poll-vote?pid=' + pid + '&opt=' + i + '" class="btn btn-gray" style="margin-bottom:6px;text-align:left">' + opt + '</a>';
+      });
+      pollHtml += '</div>';
+    });
+  }
+  res.send(page('Polls',
+    '<h1>Polls</h1>' +
+    '<h2>Have your say!</h2>' +
+    pollHtml +
+    '<hr>' +
+    '<a class="link" href="/leaderboard">Leaderboard</a>' +
+    '<a class="link" href="/">Home</a>'
+  ));
+});
+
+app.get('/poll-vote', function(req, res) {
+  const pid = req.query.pid;
+  const opt = parseInt(req.query.opt);
+  const poll = polls.get(pid);
+  if (!poll) return res.redirect('/polls');
+  if (isNaN(opt) || opt < 0 || opt >= poll.options.length) return res.redirect('/polls');
+  poll.votes[opt] = (poll.votes[opt] || 0) + 1;
+  const total = poll.votes.reduce(function(a, b) { return a + b; }, 0);
+  let bars = '';
+  poll.options.forEach(function(opt, i) {
+    const count = poll.votes[i] || 0;
+    const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+    bars += '<div style="margin-bottom:14px;text-align:left">' +
+      '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>' + opt + '</span><span style="color:#fbbf24;font-weight:700">' + count + ' (' + pct + '%)</span></div>' +
+      '<div class="bar-wrap"><div class="bar" style="width:' + pct + '%"></div></div>' +
+    '</div>';
+  });
+  res.send(page('Voted!',
+    '<h1>Thanks for voting!</h1>' +
+    '<h2>' + poll.question + '</h2>' +
+    bars +
+    '<a class="link" href="/polls">Back to polls</a>' +
+    '<a class="link" href="/">Home</a>'
+  ));
+});
+
+// ==================== LEADERBOARD ====================
 
 app.get('/leaderboard', function(req, res) {
   const sorted = Array.from(users.values()).sort(function(a, b) { return b.points - a.points; }).slice(0, 20);
@@ -341,41 +331,80 @@ app.get('/leaderboard', function(req, res) {
     '<h1>Leaderboard</h1>' +
     '<h2>Top Players</h2>' +
     '<table><tr><th>#</th><th>Player</th><th>Points</th></tr>' + rows + '</table>' +
-    '<a class="link" href="/votes">Vote results</a>' +
-    '<a class="link" href="/generate">QR Generator</a>'
+    '<a class="link" href="/polls">Polls</a>' +
+    '<a class="link" href="/">Home</a>'
   ));
 });
 
-// ==================== Additional Buttons ====================
+// ==================== EVENTS ====================
 
 app.get('/events', function(req, res) {
-  res.send(page('Wydarzenia', 
+  res.send(page('Wydarzenia',
     '<h1>Wydarzenia</h1>' +
     '<h2>Upcoming Events</h2>' +
-
     '<div style="text-align:left">' +
-
       '<p><strong>1.05 (Friday)</strong><br>17:00 Painting Day<br>20:00 Quiz: Peerel</p>' +
-
       '<hr>' +
-
       '<p><strong>2.05 (Saturday)</strong><br>19:00 Board Games & Tea</p>' +
-
       '<hr>' +
-
       '<p><strong>4.05 (Monday)</strong><br>18:00 Lets Talk Polish</p>' +
-
     '</div>' +
-
-    '<a class="link" href="/generate">QR Generator</a>' +
-    '<a class="link" href="/leaderboard">Leaderboard</a>'
+    '<a class="link" href="/">Home</a>'
   ));
 });
-// ==================== ADMIN PANEL ====================
+
+// ==================== ADMIN LOGIN ====================
 
 app.get(ADMIN_URL, function(req, res) {
+  const token = req.query.admin;
+  if (token && adminSessions.has(token)) return res.redirect(ADMIN_URL + '/panel?admin=' + token);
+  const error = req.query.error ? decodeURIComponent(req.query.error) : '';
+  res.send(page('Admin Login',
+    '<h1>Admin Login</h1>' +
+    '<h2>QR Cafe</h2>' +
+    (error ? '<div class="error">' + error + '</div>' : '') +
+    '<p style="font-size:13px;color:#666">Login with Hive Keychain (hallmann or hivedocu only)</p>' +
+    '<input type="text" id="admin-username" placeholder="Your Hive username"/>' +
+    '<button class="btn btn-blue" onclick="adminLogin()">Login with Keychain</button>' +
+    '<script>' +
+    'if(typeof window.hive_keychain !== "undefined"){' +
+      'document.getElementById("admin-username").value = "";' +
+    '}' +
+    'function adminLogin(){' +
+      'var username = document.getElementById("admin-username").value.trim().toLowerCase();' +
+      'if(!username) return alert("Enter your Hive username");' +
+      'if(typeof window.hive_keychain === "undefined") return alert("Hive Keychain not found. Open this page inside Keychain browser.");' +
+      'window.hive_keychain.requestSignBuffer(username,"qrcafe-admin-login","Posting",function(res){' +
+        'if(res.success){' +
+          'fetch("/admin-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:res.data.username})})' +
+          '.then(function(r){return r.json();})' +
+          '.then(function(d){' +
+            'if(d.ok){window.location.href="' + ADMIN_URL + '/panel?admin="+d.token;}' +
+            'else{alert(d.error||"Access denied");}' +
+          '});' +
+        '} else {alert("Keychain error: "+res.message);}' +
+      '});' +
+    '}' +
+    '</script>'
+  ));
+});
+
+app.post('/admin-auth', function(req, res) {
+  const username = (req.body.username || '').trim().toLowerCase();
+  if (!isAdmin(username)) return res.json({ ok: false, error: 'Access denied. Not an admin account.' });
+  const token = crypto.randomUUID();
+  adminSessions.add(token);
+  res.json({ ok: true, token: token });
+});
+
+// ==================== ADMIN PANEL ====================
+
+app.get(ADMIN_URL + '/panel', function(req, res) {
+  const token = req.query.admin;
+  if (!token || !adminSessions.has(token)) return res.redirect(ADMIN_URL + '?error=' + encodeURIComponent('Please login first'));
   const msg = req.query.msg ? decodeURIComponent(req.query.msg) : '';
   const isError = req.query.err === '1';
+
   let userRows = '';
   if (users.size === 0) {
     userRows = '<tr><td colspan="5" style="color:#555;text-align:center;padding:16px">No users yet</td></tr>';
@@ -385,192 +414,156 @@ app.get(ADMIN_URL, function(req, res) {
       const key = entry[0];
       const u = entry[1];
       const checkedIn = u.lastVisit && Date.now() - u.lastVisit < DAY ? 'Yes' : 'No';
-      userRows += '<tr><td><strong>' + u.name + '</strong></td><td>' + u.points + '</td><td>' + checkedIn + '</td><td>' + (u.voted ? films[u.voted] : 'No') + '</td><td>' +
-        '<form method="POST" action="' + ADMIN_URL + '/reset-pin" style="display:inline"><input type="hidden" name="key" value="' + key + '"/><input type="text" name="newpin" placeholder="PIN" style="width:60px;padding:4px;font-size:12px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;margin-right:4px"/><button type="submit" class="btn btn-blue btn-sm">Reset PIN</button></form> ' +
-        '<form method="POST" action="' + ADMIN_URL + '/reset-checkin" style="display:inline"><input type="hidden" name="key" value="' + key + '"/><button type="submit" class="btn btn-gold btn-sm">Reset CI</button></form> ' +
-        '<form method="POST" action="' + ADMIN_URL + '/delete-user" style="display:inline"><input type="hidden" name="key" value="' + key + '"/><button type="submit" class="btn btn-red btn-sm">Delete</button></form>' +
-        '</td></tr>';
+      userRows += '<tr>' +
+        '<td><strong>' + u.name + '</strong></td>' +
+        '<td>' + u.points + '</td>' +
+        '<td>' + checkedIn + '</td>' +
+        '<td>' +
+          '<form method="POST" action="' + ADMIN_URL + '/reset-pin?admin=' + token + '" style="display:inline"><input type="hidden" name="key" value="' + key + '"/><input type="text" name="newpin" placeholder="PIN" style="width:60px;padding:4px;font-size:12px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;margin-right:4px"/><button type="submit" class="btn btn-blue btn-sm">Reset PIN</button></form> ' +
+          '<form method="POST" action="' + ADMIN_URL + '/reset-checkin?admin=' + token + '" style="display:inline"><input type="hidden" name="key" value="' + key + '"/><button type="submit" class="btn btn-gold btn-sm">Reset CI</button></form> ' +
+          '<form method="POST" action="' + ADMIN_URL + '/delete-user?admin=' + token + '" style="display:inline"><input type="hidden" name="key" value="' + key + '"/><button type="submit" class="btn btn-red btn-sm">Delete</button></form>' +
+        '</td>' +
+      '</tr>';
     });
   }
+
   let nameTags = '';
   allowedNames.forEach(function(n) {
-    nameTags += '<span class="tag">' + n + ' <a href="' + ADMIN_URL + '/remove-name?name=' + encodeURIComponent(n) + '" style="color:#f87171;text-decoration:none;margin-left:4px">x</a></span>';
+    nameTags += '<span class="tag">' + n + ' <a href="' + ADMIN_URL + '/remove-name?name=' + encodeURIComponent(n) + '&admin=' + token + '" style="color:#f87171;text-decoration:none;margin-left:4px">x</a></span>';
   });
+
+  let pollRows = '';
+  polls.forEach(function(poll, pid) {
+    const total = poll.votes.reduce(function(a, b) { return a + b; }, 0);
+    pollRows += '<tr><td>' + poll.question + '</td><td>' + total + ' votes</td>' +
+      '<td><form method="POST" action="' + ADMIN_URL + '/delete-poll?admin=' + token + '" style="display:inline"><input type="hidden" name="pid" value="' + pid + '"/><button type="submit" class="btn btn-red btn-sm">Delete</button></form></td></tr>';
+  });
+
   res.send(page('Admin Panel',
     '<h1>Admin Panel</h1>' +
-    '<h2>QR Cafe ' + VERSION + '</h2>' +
+    '<h2>' + VERSION + '</h2>' +
     (msg ? '<div class="' + (isError ? 'error' : 'success') + '">' + msg + '</div>' : '') +
-    '<hr><h2 style="text-align:left;margin-bottom:12px">Users (' + users.size + ')</h2>' +
-    '<div style="overflow-x:auto"><table><tr><th>Name</th><th>Pts</th><th>Today</th><th>Voted</th><th>Actions</th></tr>' + userRows + '</table></div>' +
-    '<hr><h2 style="text-align:left;margin-bottom:12px">Allowed Names (' + allowedNames.size + ')</h2>' +
-    '<p style="text-align:left;font-size:13px;color:#666">Synced from Hive account: ' + HIVE_ACCOUNT + ' every 5 min</p>' +
+
+    '<hr>' +
+    '<a href="/qr?admin=' + token + '" class="btn btn-green">Generate QR Code</a>' +
+
+    '<hr>' +
+    '<h2 style="text-align:left;margin-bottom:12px">Users (' + users.size + ')</h2>' +
+    '<div style="overflow-x:auto"><table><tr><th>Name</th><th>Pts</th><th>Today</th><th>Actions</th></tr>' + userRows + '</table></div>' +
+
+    '<hr>' +
+    '<h2 style="text-align:left;margin-bottom:12px">Allowed Names (' + allowedNames.size + ')</h2>' +
+    '<p style="text-align:left;font-size:13px;color:#666">Synced from Hive: ' + HIVE_ACCOUNT + ' every 5 min</p>' +
     '<div style="text-align:left;margin-bottom:12px">' + (nameTags || '<p style="color:#555">No names yet</p>') + '</div>' +
-    '<form method="POST" action="' + ADMIN_URL + '/add-name" style="display:flex;gap:8px">' +
+    '<form method="POST" action="' + ADMIN_URL + '/add-name?admin=' + token + '" style="display:flex;gap:8px">' +
       '<input type="text" name="name" placeholder="Add a name..." required style="flex:1;margin:0"/>' +
       '<button type="submit" class="btn btn-green" style="width:auto;padding:8px 16px;margin:0">Add</button>' +
     '</form>' +
-    '<form method="POST" action="' + ADMIN_URL + '/sync-hive" style="margin-top:8px">' +
+    '<form method="POST" action="' + ADMIN_URL + '/sync-hive?admin=' + token + '" style="margin-top:8px">' +
       '<button type="submit" class="btn btn-blue">Sync from Hive now</button>' +
     '</form>' +
-    '<hr><h2 style="text-align:left;margin-bottom:8px">Votes</h2>' +
-    '<p style="text-align:left">Szklana Pulapka: ' + votes.a + ' | Speed: ' + votes.b + ' | Die Hard: ' + votes.c + ' | Straznik Teksasu: ' + votes.d + '</p>' +
-    '<form method="POST" action="' + ADMIN_URL + '/reset-votes"><button type="submit" class="btn btn-red">Reset All Votes</button></form>' +
-    '<hr><a class="link" href="/generate">QR Generator</a><a class="link" href="/leaderboard">Leaderboard</a>'
-  ));
+
+    '<hr>' +
+    '<h2 style="text-align:left;margin-bottom:12px">Polls (' + polls.size + '/5)</h2>' +
+    '<table><tr><th>Question</th><th>Votes</th><th>Action</th></tr>' + (pollRows || '<tr><td colspan="3" style="color:#555;padding:12px;text-align:center">No polls yet</td></tr>') + '</table>' +
+    (polls.size < 5 ?
+      '<form method="POST" action="' + ADMIN_URL + '/add-poll?admin=' + token + '" style="margin-top:12px">' +
+        '<input type="text" name="question" placeholder="Poll question..." required style="margin-bottom:8px"/>' +
+        '<input type="text" name="opt0" placeholder="Option 1" required style="margin-bottom:6px"/>' +
+        '<input type="text" name="opt1" placeholder="Option 2" required style="margin-bottom:6px"/>' +
+        '<input type="text" name="opt2" placeholder="Option 3 (optional)" style="margin-bottom:6px"/>' +
+        '<input type="text" name="opt3" placeholder="Option 4 (optional)" style="margin-bottom:6px"/>' +
+        '<button type="submit" class="btn btn-gold">Add Poll</button>' +
+      '</form>'
+      : '<p style="color:#f87171;font-size:13px">Max 5 polls reached. Delete one to add more.</p>') +
+
+    '<hr>' +
+    '<a class="link" href="/leaderboard">Leaderboard</a>' +
+    '<a class="link" href="/">Home</a>'
+  , true));
 });
 
+// ==================== ADMIN ACTIONS ====================
+
+function checkAdminToken(req, res) {
+  const token = req.query.admin;
+  if (!token || !adminSessions.has(token)) { res.redirect(ADMIN_URL); return false; }
+  return token;
+}
+
 app.post(ADMIN_URL + '/add-name', function(req, res) {
+  const token = checkAdminToken(req, res); if (!token) return;
   const name = (req.body.name || '').trim().toLowerCase();
-  if (!name) return res.redirect(ADMIN_URL + '?err=1&msg=' + encodeURIComponent('Name cannot be empty'));
+  if (!name) return res.redirect(ADMIN_URL + '/panel?admin=' + token + '&err=1&msg=' + encodeURIComponent('Name cannot be empty'));
   allowedNames.add(name);
-  res.redirect(ADMIN_URL + '?msg=' + encodeURIComponent('Added: ' + name));
+  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Added: ' + name));
 });
 
 app.get(ADMIN_URL + '/remove-name', function(req, res) {
+  const token = checkAdminToken(req, res); if (!token) return;
   const name = (req.query.name || '').trim().toLowerCase();
   allowedNames.delete(name);
-  res.redirect(ADMIN_URL + '?msg=' + encodeURIComponent('Removed: ' + name));
+  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Removed: ' + name));
 });
 
 app.post(ADMIN_URL + '/sync-hive', async function(req, res) {
+  const token = checkAdminToken(req, res); if (!token) return;
   await fetchAllowedNames();
-  res.redirect(ADMIN_URL + '?msg=' + encodeURIComponent('Synced from Hive'));
+  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Synced from Hive'));
 });
 
 app.post(ADMIN_URL + '/reset-pin', function(req, res) {
+  const token = checkAdminToken(req, res); if (!token) return;
   const oldKey = req.body.key;
   const newPin = (req.body.newpin || '').trim();
-  if (!/^\d{4,6}$/.test(newPin)) return res.redirect(ADMIN_URL + '?err=1&msg=' + encodeURIComponent('PIN must be 4-6 digits'));
+  if (!/^\d{4,6}$/.test(newPin)) return res.redirect(ADMIN_URL + '/panel?admin=' + token + '&err=1&msg=' + encodeURIComponent('PIN must be 4-6 digits'));
   const data = users.get(oldKey);
-  if (!data) return res.redirect(ADMIN_URL + '?err=1&msg=' + encodeURIComponent('User not found'));
+  if (!data) return res.redirect(ADMIN_URL + '/panel?admin=' + token + '&err=1&msg=' + encodeURIComponent('User not found'));
   users.delete(oldKey);
-  const newKey = userKey(data.name, newPin);
-  users.set(newKey, data);
-  res.redirect(ADMIN_URL + '?msg=' + encodeURIComponent('PIN reset for ' + data.name));
+  users.set(userKey(data.name, newPin), data);
+  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('PIN reset for ' + data.name));
 });
 
 app.post(ADMIN_URL + '/reset-checkin', function(req, res) {
+  const token = checkAdminToken(req, res); if (!token) return;
   const key = req.body.key;
   const data = users.get(key);
-  if (!data) return res.redirect(ADMIN_URL + '?err=1&msg=' + encodeURIComponent('User not found'));
+  if (!data) return res.redirect(ADMIN_URL + '/panel?admin=' + token + '&err=1&msg=' + encodeURIComponent('User not found'));
   data.lastVisit = 0;
   users.set(key, data);
-  res.redirect(ADMIN_URL + '?msg=' + encodeURIComponent('Check-in reset for ' + data.name));
+  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Check-in reset for ' + data.name));
 });
 
 app.post(ADMIN_URL + '/delete-user', function(req, res) {
+  const token = checkAdminToken(req, res); if (!token) return;
   const key = req.body.key;
   const data = users.get(key);
   const name = data ? data.name : key;
   users.delete(key);
-  res.redirect(ADMIN_URL + '?msg=' + encodeURIComponent('Deleted: ' + name));
+  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Deleted: ' + name));
 });
 
-app.post(ADMIN_URL + '/reset-votes', function(req, res) {
-  votes.a = 0; votes.b = 0; votes.c = 0; votes.d = 0;
-  users.forEach(function(u) { u.voted = null; });
-  res.redirect(ADMIN_URL + '?msg=' + encodeURIComponent('All votes reset'));
+app.post(ADMIN_URL + '/add-poll', function(req, res) {
+  const token = checkAdminToken(req, res); if (!token) return;
+  if (polls.size >= 5) return res.redirect(ADMIN_URL + '/panel?admin=' + token + '&err=1&msg=' + encodeURIComponent('Max 5 polls reached'));
+  const question = (req.body.question || '').trim();
+  const options = [req.body.opt0, req.body.opt1, req.body.opt2, req.body.opt3]
+    .map(function(o) { return (o || '').trim(); })
+    .filter(function(o) { return o.length > 0; });
+  if (!question || options.length < 2) return res.redirect(ADMIN_URL + '/panel?admin=' + token + '&err=1&msg=' + encodeURIComponent('Need a question and at least 2 options'));
+  const pid = crypto.randomUUID();
+  polls.set(pid, { question: question, options: options, votes: options.map(function() { return 0; }) });
+  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Poll added'));
+});
+
+app.post(ADMIN_URL + '/delete-poll', function(req, res) {
+  const token = checkAdminToken(req, res); if (!token) return;
+  polls.delete(req.body.pid);
+  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Poll deleted'));
 });
 
 // ==================== START ====================
 
-app.get('/has-check', async function(req, res) {
-  const token = req.query.token;
-  const account = req.query.account;
-  if (!token || !account) return res.json({ ok: false });
-  try {
-    const response = await fetch('https://hive-auth.arcange.eu/api/auth_check', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ account: account, token: token })
-    });
-    const data = await response.json();
-    res.json({ ok: data.valid === true });
-  } catch(e) {
-    res.json({ ok: false });
-  }
-});
-app.post('/has-init', async function(req, res) {
-  const username = (req.body.username || '').trim().toLowerCase();
-  const session = req.body.session;
-  if (!username || !session) return res.json({ ok: false });
-  const authKey = require('crypto').randomUUID();
-  const uuid = require('crypto').randomUUID();
-  pendingAuths.set(uuid, { username, session, status: 'pending', deeplink: null });
-  const ws = new (require('ws').WebSocket)('wss://hive-auth.arcange.eu');
-  ws.on('open', function() {
-    const authReqData = { app: { name: 'QR Cafe', description: 'Community check-in' } };
-    const payload = { cmd: 'auth_req', account: username, data: Buffer.from(JSON.stringify(authReqData)).toString('base64') };
-    ws.send(JSON.stringify(payload));
-  });
-  ws.on('message', function(data) {
-    const msg = JSON.parse(data);
-    const pending = pendingAuths.get(uuid);
-    if (!pending) return;
-    console.log('HAS server msg:', msg.cmd);
-    if (msg.cmd === 'auth_wait') {
-      const authPayload = { account: username, uuid: msg.uuid, key: authKey, host: 'wss://has.hiveauth.com' };
-      pending.deeplink = 'has://auth_req/' + Buffer.from(JSON.stringify(authPayload)).toString('base64');
-      pending.status = 'waiting';
-    }
-    if (msg.cmd === 'auth_ack') { pending.status = 'approved'; ws.close(); }
-    if (msg.cmd === 'auth_nack') { pending.status = 'rejected'; ws.close(); }
-  });
-  ws.on('error', function() {
-    const pending = pendingAuths.get(uuid);
-    if (pending) pending.status = 'error';
-  });
-  res.json({ ok: true, uuid });
-});
-app.get('/has-status', function(req, res) {
-  const uuid = req.query.uuid;
-  const pending = pendingAuths.get(uuid);
-  if (!pending) return res.json({ status: 'notfound' });
-  res.json({ status: pending.status, deeplink: pending.deeplink, username: pending.username, session: pending.session });
-});
-app.get('/has-redirect', function(req, res) {
-  const payload = req.query.payload;
-  if (!payload) return res.send('Missing payload');
-  res.send('<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>' +
-    '<script>' +
-    'window.location.href = "has://auth_req/' + payload + '";' +
-    'setTimeout(function(){' +
-      'document.body.innerHTML = "<p style=\'font-family:Arial;text-align:center;padding:40px\'>If Keychain did not open, make sure it is installed.<br><br><a href=\'https://play.google.com/store/apps/details?id=com.mobilekeychain\'>Download for Android</a><br><a href=\'https://apps.apple.com/app/hive-keychain/id1552190357\'>Download for iOS</a></p>";' +
-    '}, 2000);' +
-    '</script>' +
-    '</body></html>');
-});
-app.get('/hive-checkin', function(req, res) {
-  const session = req.query.session;
-  const name = (req.query.user || '').trim().toLowerCase();
-  const s = sessions.get(session);
-  if (!s || Date.now() > s.expiresAt) return res.redirect('/check?session=' + session + '&error=' + encodeURIComponent('Session expired'));
-  if (!isAllowed(name)) return res.redirect('/check?session=' + session + '&error=' + encodeURIComponent('Your name is not on the guest list'));
-  const key = 'HIVE:' + name;
-  if (!users.has(key)) users.set(key, { name: name, lastVisit: 0, points: 0, voted: null });
-  const data = users.get(key);
-  if (data.lastVisit && Date.now() - data.lastVisit < DAY) {
-    const next = new Date(data.lastVisit + DAY).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    return res.send(page('Already Checked In',
-      '<h1>Already checked in!</h1>' +
-      '<p>Hey <strong>' + data.name + '</strong>, come back after <strong>' + next + '</strong>.</p>' +
-      '<div class="badge">' + data.points + ' points</div>' +
-      '<a href="/vote?key=' + encodeURIComponent(key) + '" class="btn btn-gold" style="margin-top:8px">Vote for a film!</a>' +
-      '<a class="link" href="/leaderboard">Leaderboard</a>'
-    ));
-  }
-  data.lastVisit = Date.now();
-  data.points += 1.1;
-  users.set(key, data);
-  res.send(page('Welcome!',
-    '<h1>Witamy w Krolestwie!</h1>' +
-    '<h2>Welcome, ' + data.name + '!</h2>' +
-    '<p>Checked in with Hive Keychain!</p>' +
-    '<div class="badge">+1.1 points (Hive bonus!) - Total: ' + data.points.toFixed(1) + '</div>' +
-    '<a href="/vote?key=' + encodeURIComponent(key) + '" class="btn btn-gold" style="margin-top:8px">Vote for tonight\'s film!</a>' +
-    '<a class="link" href="/leaderboard">Leaderboard</a>'
-  ));
-});
 app.listen(PORT, function() {
   console.log('QR Cafe ' + VERSION + ' running at ' + BASE_URL);
   console.log('Admin: ' + BASE_URL + ADMIN_URL);
