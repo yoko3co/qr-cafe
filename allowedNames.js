@@ -28,6 +28,6 @@ const allowedNames = new Set([
 'agullax','monikasu','global1010','pepe20','kregulec','gwyddpel','czcibor360','okolczuga','herbacianymag','pawelz01',
 'rcr.app','ania','psypek','medrekola','aniaes','panna.sarna','daryna','mkubera','fundacja','ambrozykamil',
 'kuba','michalrapala','mynewlife','mindmat','rycer','heinz23','madlen91','filippaluch','parkasiewicz','emigarbien',
-'drwal','twszolek','sanuich','dominicus','lorenzo','klararaptusiewicz','pawianywychodzazesciany','olek','ambrozy','luc'
+'drwal','twszolek','sanuich','dominicus','lorenzo','klararaptusiewicz','pawianywychodzazesciany','olek','ambrozy','luc' , 'hivedocu' , 'sztukahbd'
 ]);
 module.exports = allowedNames;

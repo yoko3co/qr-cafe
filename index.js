@@ -1,7 +1,6 @@
 const express = require('express');
 const QRCode = require('qrcode');
 const crypto = require('crypto');
-const { getDailyJoke, getDailyQuestion, getRandomOutcome } = require('./jokes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -9,9 +8,9 @@ const DAY = 24 * 60 * 60 * 1000;
 const SESSION_TTL = 60 * 60 * 1000;
 const BASE_URL = process.env.BASE_URL || 'https://qr-cafe-shh2.onrender.com';
 const ADMIN_URL = '/hallmann';
-const VERSION = 'Krolestwo.1.0';
+const VERSION = 'Krolestwo.2.0';
 const HIVE_ACCOUNT = 'test3333';
-const ADMIN_ACCOUNTS = ['hallmann', 'hivedocu'];
+const ADMIN_ACCOUNTS = ['hallmann', 'hivedocu', 'sztukahbd'];
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -26,15 +25,9 @@ const sessions = new Map();
 const users = new Map();
 const adminSessions = new Set();
 const polls = new Map();
+const pastPolls = [];
+const { allowedNames } = require('./allowedNames');
 
-const films = {
-  a: 'Szklana Pulapka',
-  b: 'Speed',
-  c: 'Die Hard',
-  d: 'Straznik Teksasu'
-};
-
-const allowedNames = require('./allowedNames');
 
 // ==================== HIVE SYNC ====================
 
@@ -51,9 +44,7 @@ async function fetchAllowedNames() {
       allowedNames.clear();
       meta.allowed_names.forEach(function(n) { allowedNames.add(n.toLowerCase()); });
       ADMIN_ACCOUNTS.forEach(function(a) { allowedNames.add(a); });
-      console.log('Names loaded from Hive:', [...allowedNames]);
-    } else {
-      console.log('No allowed_names in Hive profile, using defaults');
+      console.log('Names loaded from Hive:', allowedNames.size);
     }
   } catch (e) {
     console.log('Hive fetch failed:', e.message);
@@ -65,17 +56,21 @@ setInterval(fetchAllowedNames, 5 * 60 * 1000);
 
 // ==================== HELPERS ====================
 
-function userKey(name, pin) { return name.trim().toLowerCase() + ':' + pin.trim(); }
 function isAllowed(name) { return allowedNames.has(name.trim().toLowerCase()); }
 function isAdmin(name) { return ADMIN_ACCOUNTS.includes((name || '').trim().toLowerCase()); }
-function isAdminSession(req) {
-  const token = req.query.admin || req.cookies && req.cookies.admin;
-  return adminSessions.has(token);
+function checkAdminToken(req, res) {
+  const token = req.query.admin || req.body && req.body.admin;
+  if (!token || !adminSessions.has(token)) { res.redirect(ADMIN_URL); return false; }
+  return token;
 }
+function getUserKey(name) { return 'HIVE:' + name.trim().toLowerCase(); }
 
 // ==================== PAGE TEMPLATE ====================
 
-function page(title, body, wide) {
+function page(title, body, opts) {
+  opts = opts || {};
+  const wide = opts.wide || false;
+  const noAdmin = opts.noAdmin || false;
   return '<!DOCTYPE html><html lang="en"><head>' +
     '<meta charset="UTF-8">' +
     '<meta name="viewport" content="width=device-width, initial-scale=1">' +
@@ -83,12 +78,13 @@ function page(title, body, wide) {
     '<style>' +
       'body{font-family:Arial,sans-serif;background:#1a1a2e;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px;box-sizing:border-box}' +
       '.card{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:20px;padding:40px 32px;max-width:' + (wide ? '700px' : '480px') + ';width:100%;text-align:center;position:relative}' +
-      '.version{position:absolute;bottom:12px;right:16px;font-size:11px;color:rgba(255,255,255,0.25)}' +
+      '.version{position:absolute;bottom:12px;right:16px;font-size:11px;color:rgba(255,255,255,0.2)}' +
+      '.admin-link{position:absolute;bottom:12px;left:16px;font-size:11px;color:rgba(255,255,255,0.2);text-decoration:none}' +
       'h1{font-size:2rem;margin:0 0 8px}' +
       'h2{font-size:1.3rem;color:#e0e0e0;margin:0 0 16px}' +
       'p{color:#aaa;margin:0 0 16px;line-height:1.6}' +
       'input[type=text],input[type=password]{width:100%;padding:13px 15px;font-size:15px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;margin-bottom:10px;outline:none;box-sizing:border-box}' +
-      '.btn{display:block;width:100%;padding:13px;font-size:16px;font-weight:600;border:none;border-radius:10px;cursor:pointer;margin-top:6px;text-decoration:none;text-align:center;box-sizing:border-box}' +
+      '.btn{display:block;width:100%;padding:13px;font-size:16px;font-weight:600;border:none;border-radius:10px;cursor:pointer;margin-top:8px;text-decoration:none;text-align:center;box-sizing:border-box}' +
       '.btn-green{background:#4ade80;color:#052e16}' +
       '.btn-gold{background:#fbbf24;color:#1c0a00}' +
       '.btn-red{background:#f87171;color:#2d0000}' +
@@ -98,6 +94,7 @@ function page(title, body, wide) {
       '.badge{display:inline-block;background:#fbbf24;color:#1c0a00;border-radius:999px;padding:6px 20px;font-weight:700;font-size:16px;margin-bottom:16px}' +
       '.error{color:#f87171;background:rgba(248,113,113,0.1);padding:10px;border-radius:8px;margin-bottom:12px;font-size:14px}' +
       '.success{color:#4ade80;background:rgba(74,222,128,0.1);padding:10px;border-radius:8px;margin-bottom:12px;font-size:14px}' +
+      '.info{color:#60a5fa;background:rgba(96,165,250,0.1);padding:10px;border-radius:8px;margin-bottom:12px;font-size:14px}' +
       'a.link{color:#60a5fa;display:block;margin-top:12px;font-size:14px;text-decoration:none}' +
       'hr{border:none;border-top:1px solid rgba(255,255,255,0.1);margin:20px 0}' +
       'strong{color:#fff}' +
@@ -107,68 +104,85 @@ function page(title, body, wide) {
       '.bar-wrap{background:rgba(255,255,255,0.1);border-radius:999px;height:10px;margin-top:6px}' +
       '.bar{background:#fbbf24;height:10px;border-radius:999px}' +
       '.tag{display:inline-block;background:rgba(255,255,255,0.1);border-radius:6px;padding:4px 10px;font-size:13px;margin:3px}' +
+      '.nav{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}' +
+      '.nav a{flex:1;min-width:80px}' +
     '</style>' +
     '</head><body><div class="card">' +
     body +
     '<div style="margin-top:20px">' +
-      '<a href="https://www.instagram.com/krolestwo.bez.kresu/" target="_blank" style="margin:0 8px;text-decoration:none;font-size:20px">📸</a>' +
-      '<a href="https://www.facebook.com/herberciarnia" target="_blank" style="margin:0 8px;text-decoration:none;font-size:20px">📘</a>' +
+      '<a href="https://www.instagram.com/krolestwo.bez.kresu/" target="_blank" style="margin:0 8px;text-decoration:none;font-size:18px">📸</a>' +
+      '<a href="https://www.facebook.com/herberciarnia" target="_blank" style="margin:0 8px;text-decoration:none;font-size:18px">📘</a>' +
     '</div>' +
     '<span class="version">' + VERSION + '</span>' +
-    '<a href="/hallmann" style="position:absolute;bottom:12px;left:16px;font-size:11px;color:rgba(255,255,255,0.2);text-decoration:none">admin</a>' +
+    (noAdmin ? '' : '<a href="/hallmann" class="admin-link">admin</a>') +
     '</div></body></html>';
 }
 
-// ==================== HOME (USERS) ====================
+function navBar(userKey) {
+  return '<div class="nav">' +
+    '<a href="/home?user=' + encodeURIComponent(userKey) + '" class="btn btn-gray">Home</a>' +
+    '<a href="/leaderboard" class="btn btn-gray">Leaderboard</a>' +
+    '<a href="/polls?user=' + encodeURIComponent(userKey) + '" class="btn btn-gray">Voting</a>' +
+    '<a href="/lottery?user=' + encodeURIComponent(userKey) + '" class="btn btn-gray">Lottery</a>' +
+  '</div>';
+}
+
+// ==================== HOME (NOT LOGGED IN) ====================
 
 app.get('/', function(req, res) {
-  const joke = getDailyJoke();
-  const question = getDailyQuestion();
-  const optButtons = question.opts.map(function(opt) {
-    return '<button class="btn btn-gray" style="margin-bottom:6px" onclick="this.style.background=\'#4ade80\';this.style.color=\'#052e16\'">' + opt + '</button>';
-  }).join('');
   res.send(page('QR Cafe',
     '<h1>QR Cafe</h1>' +
     '<h2>Witamy w Krolestwie!</h2>' +
-    '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;margin-bottom:16px;text-align:left">' +
-      '<p style="color:#fbbf24;font-size:13px;margin-bottom:8px">Joke of the day</p>' +
-      '<p style="color:#fff;font-size:14px;margin:0">' + joke + '</p>' +
-    '</div>' +
-    '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;margin-bottom:16px;text-align:left">' +
-      '<p style="color:#60a5fa;font-size:13px;margin-bottom:8px">Question of the day</p>' +
-      '<p style="color:#fff;font-size:15px;margin-bottom:12px">' + question.q + '</p>' +
-      optButtons +
-    '</div>' +
-    '<a href="/leaderboard" class="btn btn-gold" style="margin-top:8px">Leaderboard</a>' +
-    '<a href="/polls" class="btn btn-blue" style="margin-top:8px">Polls & Votes</a>' +
-    '<a href="/events" class="btn btn-gray" style="margin-top:8px">Wydarzenia</a>'
+    '<div class="info">Chcesz zalozyc konto?<br><strong>Zapytaj w Krolestwie!</strong></div>' +
+    '<hr>' +
+    '<p style="font-size:13px;color:#666">Login with your Hive account</p>' +
+    '<input type="text" id="hive-username" placeholder="Your Hive username"/>' +
+    '<a href="hive://browser?url=' + encodeURIComponent(BASE_URL + '/keychain-login') + '" class="btn btn-blue" id="open-keychain">Open in Keychain App</a>' +
+    '<script>' +
+    'if(typeof window.hive_keychain !== "undefined"){' +
+      'document.getElementById("open-keychain").style.display="none";' +
+      'var btn=document.createElement("button");' +
+      'btn.className="btn btn-blue";' +
+      'btn.innerText="Login with Hive Keychain";' +
+      'btn.onclick=function(){' +
+        'var u=document.getElementById("hive-username").value.trim().toLowerCase();' +
+        'if(!u) return alert("Enter your Hive username");' +
+        'window.hive_keychain.requestSignBuffer(u,"qrcafe-login","Posting",function(res){' +
+          'if(res.success){window.location.href="/keychain-login?user="+encodeURIComponent(res.data.username);}' +
+          'else{alert("Error: "+res.message);}' +
+        '});' +
+      '};' +
+      'document.getElementById("open-keychain").insertAdjacentElement("afterend",btn);' +
+    '}' +
+    '</script>'
   ));
 });
 
-// ==================== QR DISPLAY (tablet only, no nav) ====================
+// ==================== KEYCHAIN LOGIN ====================
 
-app.get('/qr', async function(req, res) {
-  const token = req.query.admin;
-  if (!adminSessions.has(token)) return res.redirect(ADMIN_URL);
-  const sid = crypto.randomUUID();
-  sessions.set(sid, { expiresAt: Date.now() + SESSION_TTL });
-  const url = BASE_URL + '/check?session=' + sid;
-  const qr = await QRCode.toDataURL(url, { width: 320, margin: 2 });
-  res.send('<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-    '<style>body{background:#1a1a2e;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;flex-direction:column;font-family:Arial,sans-serif;color:#fff}' +
-    'h1{font-size:2rem;margin-bottom:8px}h2{color:#aaa;font-size:1rem;margin-bottom:20px}' +
-    '.version{position:fixed;bottom:12px;right:16px;font-size:11px;color:rgba(255,255,255,0.2)}</style>' +
-    '<script>setTimeout(function(){window.location.reload();},60000);</script>' +
-    '</head><body>' +
-    '<h1>QR Cafe</h1>' +
-    '<h2>Scan to check in</h2>' +
-    '<img src="' + qr + '" style="width:300px;height:300px;border-radius:16px"/>' +
-    '<p style="color:#555;font-size:13px;margin-top:16px">Refreshes every minute</p>' +
-    '<span class="version">' + VERSION + '</span>' +
-    '</body></html>');
+app.get('/keychain-login', function(req, res) {
+  const name = (req.query.user || '').trim().toLowerCase();
+  if (!name) return res.redirect('/');
+  const key = getUserKey(name);
+  if (!users.has(key)) users.set(key, { name: name, points: 0, lastVisit: 0, voted: {}, randomPresses: 0, randomDay: 0 });
+  res.redirect('/home?user=' + encodeURIComponent(key));
 });
 
-// ==================== CHECK IN ====================
+// ==================== HOME (LOGGED IN) ====================
+
+app.get('/home', function(req, res) {
+  const key = req.query.user;
+  const data = users.get(key);
+  if (!data) return res.redirect('/');
+  res.send(page('Home',
+    '<h1>Witamy w Krolestwie!</h1>' +
+    '<h2>Hey, <strong>' + data.name + '</strong>!</h2>' +
+    '<div class="badge">' + data.points.toFixed(1) + ' points</div>' +
+    navBar(key)
+  ));
+});
+
+// ==================== CHECK IN (QR SCAN) ====================
 
 app.get('/check', function(req, res) {
   const session = req.query.session;
@@ -178,61 +192,46 @@ app.get('/check', function(req, res) {
   const error = req.query.error ? decodeURIComponent(req.query.error) : '';
   res.send(page('Check In',
     '<h1>QR Cafe</h1>' +
-    '<h2>Witamy w Krolestwie!</h2>' +
-    '<p>First time? Enter your name and choose a PIN.<br>Returning? Use the same name and PIN.</p>' +
+    '<h2>Check In</h2>' +
     (error ? '<div class="error">' + error + '</div>' : '') +
-    '<form method="POST" action="/check">' +
-      '<input type="hidden" name="session" value="' + session + '"/>' +
-      '<input type="text" name="name" placeholder="Your name" required maxlength="30" autocomplete="off"/>' +
-      '<input type="password" name="pin" placeholder="PIN (4 digits)" required maxlength="6" inputmode="numeric"/>' +
-      '<button class="btn btn-green" type="submit">Check In with PIN</button>' +
-    '</form>' +
-    '<hr>' +
-    '<p style="font-size:13px;color:#666">Have Hive Keychain?</p>' +
+    '<p>Login with Hive Keychain to check in and earn points.</p>' +
+    '<input type="text" id="hive-username" placeholder="Your Hive username"/>' +
     '<a href="hive://browser?url=' + encodeURIComponent(BASE_URL + '/check?session=' + session) + '" class="btn btn-blue" id="open-keychain">Open in Keychain App</a>' +
-    '<a class="link" href="/leaderboard">Leaderboard</a>' +
     '<script>' +
     'if(typeof window.hive_keychain !== "undefined"){' +
       'document.getElementById("open-keychain").style.display="none";' +
       'var btn=document.createElement("button");' +
-      'btn.className="btn btn-blue";' +
-      'btn.style.marginTop="6px";' +
-      'btn.innerText="Sign in with Keychain";' +
+      'btn.className="btn btn-green";' +
+      'btn.innerText="Sign In with Keychain";' +
       'btn.onclick=function(){' +
-        'window.hive_keychain.requestSignBuffer(null,"qrcafe-checkin-' + session + '","Posting",function(res){' +
+        'var u=document.getElementById("hive-username").value.trim().toLowerCase();' +
+        'if(!u) return alert("Enter your Hive username");' +
+        'window.hive_keychain.requestSignBuffer(u,"qrcafe-checkin-' + session + '","Posting",function(res){' +
           'if(res.success){window.location.href="/hive-checkin?session=' + session + '&user="+encodeURIComponent(res.data.username);}' +
           'else{alert("Error: "+res.message);}' +
         '});' +
       '};' +
-      'document.getElementById("open-keychain").parentNode.insertBefore(btn,document.getElementById("open-keychain").nextSibling);' +
+      'document.getElementById("open-keychain").insertAdjacentElement("afterend",btn);' +
     '}' +
     '</script>'
   ));
 });
 
-app.post('/check', function(req, res) {
-  const session = req.body.session;
-  const name = (req.body.name || '').trim();
-  const pin = (req.body.pin || '').trim();
+app.get('/hive-checkin', function(req, res) {
+  const session = req.query.session;
+  const name = (req.query.user || '').trim().toLowerCase();
   const s = sessions.get(session);
   if (!s || Date.now() > s.expiresAt) return res.redirect('/check?session=' + session + '&error=' + encodeURIComponent('Session expired'));
-  if (!name || !pin) return res.redirect('/check?session=' + session + '&error=' + encodeURIComponent('Please enter name and PIN'));
-  if (!/^\d{4,6}$/.test(pin)) return res.redirect('/check?session=' + session + '&error=' + encodeURIComponent('PIN must be 4 to 6 digits'));
-  if (!isAllowed(name)) return res.redirect('/check?session=' + session + '&error=' + encodeURIComponent('Sorry, your name is not on the guest list'));
-  const key = userKey(name, pin);
-  for (const [k, v] of users.entries()) {
-    if (v.name.toLowerCase() === name.toLowerCase() && k !== key) return res.redirect('/check?session=' + session + '&error=' + encodeURIComponent('Wrong PIN for this name'));
-  }
-  if (!users.has(key)) users.set(key, { name: name, lastVisit: 0, points: 0, voted: {} });
+  const key = getUserKey(name);
+  if (!users.has(key)) users.set(key, { name: name, points: 0, lastVisit: 0, voted: {}, randomPresses: 0, randomDay: 0 });
   const data = users.get(key);
   if (data.lastVisit && Date.now() - data.lastVisit < DAY) {
     const next = new Date(data.lastVisit + DAY).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     return res.send(page('Already Checked In',
       '<h1>Already checked in!</h1>' +
       '<p>Hey <strong>' + data.name + '</strong>, come back after <strong>' + next + '</strong>.</p>' +
-      '<div class="badge">' + data.points + ' points</div>' +
-      '<a href="/polls" class="btn btn-gold" style="margin-top:8px">Go to Polls</a>' +
-      '<a class="link" href="/leaderboard">Leaderboard</a>'
+      '<div class="badge">' + data.points.toFixed(1) + ' points</div>' +
+      navBar(key)
     ));
   }
   data.lastVisit = Date.now();
@@ -241,114 +240,9 @@ app.post('/check', function(req, res) {
   res.send(page('Welcome!',
     '<h1>Witamy w Krolestwie!</h1>' +
     '<h2>Welcome, ' + data.name + '!</h2>' +
-    '<p>Great to have you here today!</p>' +
-    '<div class="badge">+1 point - Total: ' + data.points + '</div>' +
-    '<a href="/polls" class="btn btn-gold" style="margin-top:8px">Vote in polls!</a>' +
-    '<a class="link" href="/leaderboard">Leaderboard</a>'
-  ));
-});
-
-// ==================== HIVE CHECKIN ====================
-
-app.get('/hive-checkin', function(req, res) {
-  const session = req.query.session;
-  const name = (req.query.user || '').trim().toLowerCase();
-  const s = sessions.get(session);
-  if (!s || Date.now() > s.expiresAt) return res.redirect('/check?session=' + session + '&error=' + encodeURIComponent('Session expired'));
-  if (!isAllowed(name)) return res.redirect('/check?session=' + session + '&error=' + encodeURIComponent('Your name is not on the guest list'));
-  const key = 'HIVE:' + name;
-  if (!users.has(key)) users.set(key, { name: name, lastVisit: 0, points: 0, voted: {} });
-  const data = users.get(key);
-  if (data.lastVisit && Date.now() - data.lastVisit < DAY) {
-    const next = new Date(data.lastVisit + DAY).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    return res.send(page('Already Checked In',
-      '<h1>Already checked in!</h1>' +
-      '<p>Hey <strong>' + data.name + '</strong>, come back after <strong>' + next + '</strong>.</p>' +
-      '<div class="badge">' + data.points + ' points</div>' +
-      '<a href="/polls" class="btn btn-gold" style="margin-top:8px">Go to Polls</a>' +
-      '<a class="link" href="/leaderboard">Leaderboard</a>'
-    ));
-  }
-  data.lastVisit = Date.now();
-  data.points += 1.1;
-  users.set(key, data);
-  res.send(page('Welcome!',
-    '<h1>Witamy w Krolestwie!</h1>' +
-    '<h2>Welcome, ' + data.name + '!</h2>' +
     '<p>Checked in with Hive Keychain!</p>' +
-    '<div class="badge">+1.1 points (Hive bonus!) - Total: ' + data.points.toFixed(1) + '</div>' +
-    '<a href="#" onclick="randomise()" class="btn btn-green" style="margin-top:8px" id="rand-btn">Try your luck! (3x today)</a>' +
-'<div id="rand-result" style="margin-top:12px;font-size:18px;font-weight:700;color:#fbbf24"></div>' +
-'<script>' +
-'var userKey = "HIVE:' + name + '";' +
-'function randomise(){' +
-  'fetch("/randomise?user="+encodeURIComponent(userKey))' +
-  '.then(function(r){return r.json();})' +
-  '.then(function(d){' +
-    'if(d.ok){' +
-      'document.getElementById("rand-result").innerText = d.msg;' +
-      'document.getElementById("rand-btn").innerText = "Try your luck! (" + d.pressesLeft + "x left)";' +
-      'if(d.pressesLeft === 0) document.getElementById("rand-btn").style.opacity = "0.4";' +
-    '} else {' +
-      'document.getElementById("rand-result").innerText = d.error;' +
-      'document.getElementById("rand-btn").style.opacity = "0.4";' +
-    '}' +
-  '});' +
-'}' +
-'</script>' + 
-    '<a class="link" href="/leaderboard">Leaderboard</a>'
-  ));
-});
-
-// ==================== POLLS ====================
-
-app.get('/polls', function(req, res) {
-  let pollHtml = '';
-  if (polls.size === 0) {
-    pollHtml = '<p style="color:#555">No active polls yet.</p>';
-  } else {
-    polls.forEach(function(poll, pid) {
-      pollHtml += '<div style="text-align:left;margin-bottom:20px;background:rgba(255,255,255,0.05);padding:16px;border-radius:12px">' +
-        '<strong>' + poll.question + '</strong><br/><br/>';
-      poll.options.forEach(function(opt, i) {
-        pollHtml += '<a href="/poll-vote?pid=' + pid + '&opt=' + i + '" class="btn btn-gray" style="margin-bottom:6px;text-align:left">' + opt + '</a>';
-      });
-      pollHtml += '</div>';
-    });
-  }
-  res.send(page('Polls',
-    '<h1>Polls</h1>' +
-    '<h2>Have your say!</h2>' +
-    pollHtml +
-    '<hr>' +
-    '<a class="link" href="/leaderboard">Leaderboard</a>' +
-    '<a class="link" href="/">Home</a>'
-  ));
-});
-
-app.get('/poll-vote', function(req, res) {
-  const pid = req.query.pid;
-  const opt = parseInt(req.query.opt);
-  const poll = polls.get(pid);
-  if (!poll) return res.redirect('/polls');
-  if (isNaN(opt) || opt < 0 || opt >= poll.options.length) return res.redirect('/polls');
-  poll.votes[opt] = (poll.votes[opt] || 0) + 1;
-  const total = poll.votes.reduce(function(a, b) { return a + b; }, 0);
-  let bars = '';
-  poll.options.forEach(function(opt, i) {
-    const count = poll.votes[i] || 0;
-    const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-    bars += '<div style="margin-bottom:14px;text-align:left">' +
-      '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>' + opt + '</span><span style="color:#fbbf24;font-weight:700">' + count + ' (' + pct + '%)</span></div>' +
-      '<div class="bar-wrap"><div class="bar" style="width:' + pct + '%"></div></div>' +
-    '</div>';
-  });
-  res.send(page('Voted!',
-    '<h1>Thanks for voting!</h1>' +
-    '<h2>' + poll.question + '</h2>' +
-    bars +
-    '<a class="link" href="/polls">Back to polls</a>' +
-    '<a class="link" href="/">Home</a>'
+    '<div class="badge">+1 point - Total: ' + data.points.toFixed(1) + '</div>' +
+    navBar(key)
   ));
 });
 
@@ -359,32 +253,135 @@ app.get('/leaderboard', function(req, res) {
   const medals = ['1st', '2nd', '3rd'];
   let rows = sorted.length === 0 ? '<tr><td colspan="3" style="color:#555;padding:20px;text-align:center">No players yet</td></tr>' : '';
   sorted.forEach(function(u, i) {
-    rows += '<tr><td style="color:#fbbf24;font-weight:700">' + (medals[i] || i + 1) + '</td><td>' + u.name + '</td><td style="color:#fbbf24;font-weight:700">' + u.points + ' pts</td></tr>';
+    rows += '<tr><td style="color:#fbbf24;font-weight:700">' + (medals[i] || i + 1) + '</td><td>' + u.name + '</td><td style="color:#fbbf24;font-weight:700">' + u.points.toFixed(1) + ' pts</td></tr>';
   });
   res.send(page('Leaderboard',
     '<h1>Leaderboard</h1>' +
     '<h2>Top Players</h2>' +
     '<table><tr><th>#</th><th>Player</th><th>Points</th></tr>' + rows + '</table>' +
-    '<a class="link" href="/polls">Polls</a>' +
     '<a class="link" href="/">Home</a>'
   ));
 });
 
-// ==================== EVENTS ====================
+// ==================== POLLS ====================
 
-app.get('/events', function(req, res) {
-  res.send(page('Wydarzenia',
-    '<h1>Wydarzenia</h1>' +
-    '<h2>Upcoming Events</h2>' +
-    '<div style="text-align:left">' +
-      '<p><strong>1.05 (Friday)</strong><br>17:00 Painting Day<br>20:00 Quiz: Peerel</p>' +
-      '<hr>' +
-      '<p><strong>2.05 (Saturday)</strong><br>19:00 Board Games & Tea</p>' +
-      '<hr>' +
-      '<p><strong>4.05 (Monday)</strong><br>18:00 Lets Talk Polish</p>' +
-    '</div>' +
-    '<a class="link" href="/">Home</a>'
+app.get('/polls', function(req, res) {
+  const key = req.query.user;
+  const data = users.get(key);
+  if (!data) return res.redirect('/');
+  let pollHtml = '';
+  if (polls.size === 0) {
+    pollHtml = '<div class="info">No active polls right now.</div>';
+  } else {
+    polls.forEach(function(poll, pid) {
+      if (poll.status === 'stopped') return;
+      const voted = data.voted && data.voted[pid];
+      pollHtml += '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;margin-bottom:16px;text-align:left">' +
+        '<strong>' + poll.question + '</strong>';
+      if (poll.status === 'paused') {
+        pollHtml += '<p style="color:#f87171;font-size:13px;margin-top:8px">This poll is paused.</p>';
+      } else if (voted) {
+        pollHtml += '<p style="color:#4ade80;font-size:13px;margin-top:8px">You voted for: <strong>' + poll.options[voted.optIndex] + '</strong></p>';
+        poll.options.forEach(function(opt, i) {
+          const total = poll.votes.reduce(function(a, b) { return a + b; }, 0);
+          const pct = total > 0 ? Math.round((poll.votes[i] / total) * 100) : 0;
+          pollHtml += '<div style="margin-top:8px;text-align:left"><div style="display:flex;justify-content:space-between"><span style="font-size:13px">' + opt + '</span><span style="color:#fbbf24;font-size:13px">' + pct + '%</span></div><div class="bar-wrap"><div class="bar" style="width:' + pct + '%"></div></div></div>';
+        });
+      } else {
+        poll.options.forEach(function(opt, i) {
+          pollHtml += '<a href="/poll-vote?pid=' + pid + '&opt=' + i + '&user=' + encodeURIComponent(key) + '" class="btn btn-gray" style="margin-top:6px;text-align:left">' + opt + '</a>';
+        });
+      }
+      pollHtml += '</div>';
+    });
+  }
+  res.send(page('Voting',
+    '<h1>Voting</h1>' +
+    pollHtml +
+    navBar(key)
   ));
+});
+
+app.get('/poll-vote', function(req, res) {
+  const pid = req.query.pid;
+  const opt = parseInt(req.query.opt);
+  const key = req.query.user;
+  const poll = polls.get(pid);
+  const data = users.get(key);
+  if (!poll || !data) return res.redirect('/');
+  if (poll.status !== 'active') return res.redirect('/polls?user=' + encodeURIComponent(key));
+  if (data.voted && data.voted[pid]) return res.redirect('/polls?user=' + encodeURIComponent(key));
+  if (isNaN(opt) || opt < 0 || opt >= poll.options.length) return res.redirect('/polls?user=' + encodeURIComponent(key));
+  poll.votes[opt]++;
+  if (!data.voted) data.voted = {};
+  data.voted[pid] = { optIndex: opt };
+  users.set(key, data);
+  res.redirect('/polls?user=' + encodeURIComponent(key));
+});
+
+// ==================== LOTTERY ====================
+
+const lotteryOutcomes = [
+  { msg: "Wygrales 5 rycarow!", rare: true },
+  { msg: "Wygrales 100!", rare: true },
+  { msg: "Niestety nic... Sprobuj jutro!", rare: false },
+  { msg: "Prawie! Ale jednak nie.", rare: false },
+  { msg: "Los mowi: dzisiaj nie.", rare: false },
+  { msg: "Moze jutro bedzie lepiej!", rare: false },
+  { msg: "Puste kieszenie, pelne serce.", rare: false },
+  { msg: "Wszechswiat sie zastanawia...", rare: false },
+  { msg: "Nie tym razem, przyjacielu.", rare: false },
+  { msg: "Sprobuj jeszcze raz jutro!", rare: false }
+];
+
+app.get('/lottery', function(req, res) {
+  const key = req.query.user;
+  const data = users.get(key);
+  if (!data) return res.redirect('/');
+  const today = Math.floor(Date.now() / DAY);
+  if (data.randomDay !== today) { data.randomPresses = 0; data.randomDay = today; }
+  const pressesLeft = 3 - (data.randomPresses || 0);
+  res.send(page('Lottery',
+    '<h1>Lottery</h1>' +
+    '<h2>Try your luck!</h2>' +
+    '<p>' + pressesLeft + ' press' + (pressesLeft !== 1 ? 'es' : '') + ' remaining today</p>' +
+    '<div id="result" style="font-size:20px;font-weight:700;color:#fbbf24;min-height:32px;margin-bottom:16px"></div>' +
+    (pressesLeft > 0 ?
+      '<button class="btn btn-gold" onclick="spin()">Try your luck!</button>' :
+      '<div class="info">Come back tomorrow for more!</div>') +
+    navBar(key) +
+    '<script>' +
+    'function spin(){' +
+      'fetch("/lottery-spin?user=' + encodeURIComponent(key) + '")' +
+      '.then(function(r){return r.json();})' +
+      '.then(function(d){' +
+        'document.getElementById("result").innerText = d.msg;' +
+        'if(d.pressesLeft === 0) document.querySelector(".btn-gold") && (document.querySelector(".btn-gold").disabled=true);' +
+        'if(!d.ok) document.querySelector(".btn-gold") && document.querySelector(".btn-gold").remove();' +
+      '});' +
+    '}' +
+    '</script>'
+  ));
+});
+
+app.get('/lottery-spin', function(req, res) {
+  const key = req.query.user;
+  const data = users.get(key);
+  if (!data) return res.json({ ok: false, msg: 'Not logged in' });
+  const today = Math.floor(Date.now() / DAY);
+  if (data.randomDay !== today) { data.randomPresses = 0; data.randomDay = today; }
+  if ((data.randomPresses || 0) >= 3) return res.json({ ok: false, msg: 'No more presses today!' });
+  data.randomPresses = (data.randomPresses || 0) + 1;
+  users.set(key, data);
+  const rand = Math.random();
+  let outcome;
+  if (rand < 0.05) outcome = lotteryOutcomes[0];
+  else if (rand < 0.08) outcome = lotteryOutcomes[1];
+  else {
+    const others = lotteryOutcomes.filter(function(o) { return !o.rare; });
+    outcome = others[Math.floor(Math.random() * others.length)];
+  }
+  res.json({ ok: true, msg: outcome.msg, pressesLeft: 3 - data.randomPresses });
 });
 
 // ==================== ADMIN LOGIN ====================
@@ -397,18 +394,16 @@ app.get(ADMIN_URL, function(req, res) {
     '<h1>Admin Login</h1>' +
     '<h2>QR Cafe</h2>' +
     (error ? '<div class="error">' + error + '</div>' : '') +
-    '<p style="font-size:13px;color:#666">Login with Hive Keychain (hallmann or hivedocu only)</p>' +
+    '<p style="font-size:13px;color:#666">Keychain login — hallmann or hivedocu only</p>' +
     '<input type="text" id="admin-username" placeholder="Your Hive username"/>' +
     '<button class="btn btn-blue" onclick="adminLogin()">Login with Keychain</button>' +
+    '<a href="/" class="btn btn-gray">Home</a>' +
     '<script>' +
-    'if(typeof window.hive_keychain !== "undefined"){' +
-      'document.getElementById("admin-username").value = "";' +
-    '}' +
     'function adminLogin(){' +
-      'var username = document.getElementById("admin-username").value.trim().toLowerCase();' +
-      'if(!username) return alert("Enter your Hive username");' +
-      'if(typeof window.hive_keychain === "undefined") return alert("Hive Keychain not found. Open this page inside Keychain browser.");' +
-      'window.hive_keychain.requestSignBuffer(username,"qrcafe-admin-login","Posting",function(res){' +
+      'var u=document.getElementById("admin-username").value.trim().toLowerCase();' +
+      'if(!u) return alert("Enter your Hive username");' +
+      'if(typeof window.hive_keychain==="undefined") return alert("Open this page inside Keychain browser");' +
+      'window.hive_keychain.requestSignBuffer(u,"qrcafe-admin-login","Posting",function(res){' +
         'if(res.success){' +
           'fetch("/admin-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:res.data.username})})' +
           '.then(function(r){return r.json();})' +
@@ -416,16 +411,16 @@ app.get(ADMIN_URL, function(req, res) {
             'if(d.ok){window.location.href="' + ADMIN_URL + '/panel?admin="+d.token;}' +
             'else{alert(d.error||"Access denied");}' +
           '});' +
-        '} else {alert("Keychain error: "+res.message);}' +
+        '} else{alert("Keychain error: "+res.message);}' +
       '});' +
     '}' +
     '</script>'
-  ));
+  , { noAdmin: true }));
 });
 
 app.post('/admin-auth', function(req, res) {
   const username = (req.body.username || '').trim().toLowerCase();
-  if (!isAdmin(username)) return res.json({ ok: false, error: 'Access denied. Not an admin account.' });
+  if (!isAdmin(username)) return res.json({ ok: false, error: 'Access denied.' });
   const token = crypto.randomUUID();
   adminSessions.add(token);
   res.json({ ok: true, token: token });
@@ -434,14 +429,14 @@ app.post('/admin-auth', function(req, res) {
 // ==================== ADMIN PANEL ====================
 
 app.get(ADMIN_URL + '/panel', function(req, res) {
-  const token = req.query.admin;
-  if (!token || !adminSessions.has(token)) return res.redirect(ADMIN_URL + '?error=' + encodeURIComponent('Please login first'));
+  const token = checkAdminToken(req, res); if (!token) return;
   const msg = req.query.msg ? decodeURIComponent(req.query.msg) : '';
   const isError = req.query.err === '1';
+  const a = '?admin=' + token;
 
   let userRows = '';
   if (users.size === 0) {
-    userRows = '<tr><td colspan="5" style="color:#555;text-align:center;padding:16px">No users yet</td></tr>';
+    userRows = '<tr><td colspan="4" style="color:#555;text-align:center;padding:16px">No users yet</td></tr>';
   } else {
     const sorted = Array.from(users.entries()).sort(function(a, b) { return b[1].points - a[1].points; });
     sorted.forEach(function(entry) {
@@ -450,27 +445,44 @@ app.get(ADMIN_URL + '/panel', function(req, res) {
       const checkedIn = u.lastVisit && Date.now() - u.lastVisit < DAY ? 'Yes' : 'No';
       userRows += '<tr>' +
         '<td><strong>' + u.name + '</strong></td>' +
-        '<td>' + u.points + '</td>' +
+        '<td>' + u.points.toFixed(1) + '</td>' +
         '<td>' + checkedIn + '</td>' +
         '<td>' +
-          '<form method="POST" action="' + ADMIN_URL + '/reset-pin?admin=' + token + '" style="display:inline"><input type="hidden" name="key" value="' + key + '"/><input type="text" name="newpin" placeholder="PIN" style="width:60px;padding:4px;font-size:12px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;margin-right:4px"/><button type="submit" class="btn btn-blue btn-sm">Reset PIN</button></form> ' +
-          '<form method="POST" action="' + ADMIN_URL + '/reset-checkin?admin=' + token + '" style="display:inline"><input type="hidden" name="key" value="' + key + '"/><button type="submit" class="btn btn-gold btn-sm">Reset CI</button></form> ' +
-          '<form method="POST" action="' + ADMIN_URL + '/delete-user?admin=' + token + '" style="display:inline"><input type="hidden" name="key" value="' + key + '"/><button type="submit" class="btn btn-red btn-sm">Delete</button></form>' +
+          '<form method="POST" action="' + ADMIN_URL + '/reset-checkin' + a + '" style="display:inline"><input type="hidden" name="key" value="' + key + '"/><button type="submit" class="btn btn-gold btn-sm">Reset CI</button></form> ' +
+          '<form method="POST" action="' + ADMIN_URL + '/delete-user' + a + '" style="display:inline"><input type="hidden" name="key" value="' + key + '"/><button type="submit" class="btn btn-red btn-sm">Delete</button></form>' +
         '</td>' +
       '</tr>';
     });
   }
 
-  let nameTags = '';
-  allowedNames.forEach(function(n) {
-    nameTags += '<span class="tag">' + n + ' <a href="' + ADMIN_URL + '/remove-name?name=' + encodeURIComponent(n) + '&admin=' + token + '" style="color:#f87171;text-decoration:none;margin-left:4px">x</a></span>';
-  });
-
   let pollRows = '';
   polls.forEach(function(poll, pid) {
     const total = poll.votes.reduce(function(a, b) { return a + b; }, 0);
-    pollRows += '<tr><td>' + poll.question + '</td><td>' + total + ' votes</td>' +
-      '<td><form method="POST" action="' + ADMIN_URL + '/delete-poll?admin=' + token + '" style="display:inline"><input type="hidden" name="pid" value="' + pid + '"/><button type="submit" class="btn btn-red btn-sm">Delete</button></form></td></tr>';
+    const statusColor = poll.status === 'active' ? '#4ade80' : poll.status === 'paused' ? '#fbbf24' : '#f87171';
+    pollRows += '<tr>' +
+      '<td>' + poll.question + '</td>' +
+      '<td style="color:' + statusColor + '">' + poll.status + '</td>' +
+      '<td>' + total + '</td>' +
+      '<td>' +
+        (poll.status === 'active' ?
+          '<form method="POST" action="' + ADMIN_URL + '/pause-poll' + a + '" style="display:inline"><input type="hidden" name="pid" value="' + pid + '"/><button type="submit" class="btn btn-gold btn-sm">Pause</button></form> ' : '') +
+        (poll.status === 'paused' ?
+          '<form method="POST" action="' + ADMIN_URL + '/resume-poll' + a + '" style="display:inline"><input type="hidden" name="pid" value="' + pid + '"/><button type="submit" class="btn btn-green btn-sm">Resume</button></form> ' : '') +
+        (poll.status !== 'stopped' ?
+          '<form method="POST" action="' + ADMIN_URL + '/stop-poll' + a + '" style="display:inline"><input type="hidden" name="pid" value="' + pid + '"/><button type="submit" class="btn btn-red btn-sm">Stop</button></form>' : 'Stopped') +
+      '</td>' +
+    '</tr>';
+  });
+
+  let pastPollRows = '';
+  pastPolls.forEach(function(poll) {
+    const total = poll.votes.reduce(function(a, b) { return a + b; }, 0);
+    pastPollRows += '<tr><td>' + poll.question + '</td><td>' + total + ' votes</td><td>';
+    poll.options.forEach(function(opt, i) {
+      const pct = total > 0 ? Math.round((poll.votes[i] / total) * 100) : 0;
+      pastPollRows += opt + ': ' + pct + '% ';
+    });
+    pastPollRows += '</td></tr>';
   });
 
   res.send(page('Admin Panel',
@@ -479,29 +491,17 @@ app.get(ADMIN_URL + '/panel', function(req, res) {
     (msg ? '<div class="' + (isError ? 'error' : 'success') + '">' + msg + '</div>' : '') +
 
     '<hr>' +
-    '<a href="/qr?admin=' + token + '" class="btn btn-green">Generate QR Code</a>' +
+    '<a href="/qr' + a + '" class="btn btn-green">Generate QR Code</a>' +
 
     '<hr>' +
     '<h2 style="text-align:left;margin-bottom:12px">Users (' + users.size + ')</h2>' +
     '<div style="overflow-x:auto"><table><tr><th>Name</th><th>Pts</th><th>Today</th><th>Actions</th></tr>' + userRows + '</table></div>' +
 
     '<hr>' +
-    '<h2 style="text-align:left;margin-bottom:12px">Allowed Names (' + allowedNames.size + ')</h2>' +
-    '<p style="text-align:left;font-size:13px;color:#666">Synced from Hive: ' + HIVE_ACCOUNT + ' every 5 min</p>' +
-    '<details style="text-align:left;margin-bottom:12px"><summary style="cursor:pointer;color:#60a5fa;font-size:14px">Show allowed names (' + allowedNames.size + ')</summary><div style="margin-top:8px">' + (nameTags || '<p style="color:#555">No names yet</p>') + '</div></details>' +
-    '<form method="POST" action="' + ADMIN_URL + '/add-name?admin=' + token + '" style="display:flex;gap:8px">' +
-      '<input type="text" name="name" placeholder="Add a name..." required style="flex:1;margin:0"/>' +
-      '<button type="submit" class="btn btn-green" style="width:auto;padding:8px 16px;margin:0">Add</button>' +
-    '</form>' +
-    '<form method="POST" action="' + ADMIN_URL + '/sync-hive?admin=' + token + '" style="margin-top:8px">' +
-      '<button type="submit" class="btn btn-blue">Sync from Hive now</button>' +
-    '</form>' +
-
-    '<hr>' +
-    '<h2 style="text-align:left;margin-bottom:12px">Polls (' + polls.size + '/5)</h2>' +
-    '<table><tr><th>Question</th><th>Votes</th><th>Action</th></tr>' + (pollRows || '<tr><td colspan="3" style="color:#555;padding:12px;text-align:center">No polls yet</td></tr>') + '</table>' +
+    '<h2 style="text-align:left;margin-bottom:12px">Active Polls (' + polls.size + '/5)</h2>' +
+    '<table><tr><th>Question</th><th>Status</th><th>Votes</th><th>Actions</th></tr>' + (pollRows || '<tr><td colspan="4" style="color:#555;padding:12px;text-align:center">No polls yet</td></tr>') + '</table>' +
     (polls.size < 5 ?
-      '<form method="POST" action="' + ADMIN_URL + '/add-poll?admin=' + token + '" style="margin-top:12px">' +
+      '<form method="POST" action="' + ADMIN_URL + '/add-poll' + a + '" style="margin-top:16px">' +
         '<input type="text" name="question" placeholder="Poll question..." required style="margin-bottom:8px"/>' +
         '<input type="text" name="opt0" placeholder="Option 1" required style="margin-bottom:6px"/>' +
         '<input type="text" name="opt1" placeholder="Option 2" required style="margin-bottom:6px"/>' +
@@ -509,53 +509,81 @@ app.get(ADMIN_URL + '/panel', function(req, res) {
         '<input type="text" name="opt3" placeholder="Option 4 (optional)" style="margin-bottom:6px"/>' +
         '<button type="submit" class="btn btn-gold">Add Poll</button>' +
       '</form>'
-      : '<p style="color:#f87171;font-size:13px">Max 5 polls reached. Delete one to add more.</p>') +
+      : '<p style="color:#f87171;font-size:13px">Max 5 polls reached.</p>') +
+
+    (pastPolls.length > 0 ?
+      '<hr><h2 style="text-align:left;margin-bottom:12px">Past Polls</h2>' +
+      '<table><tr><th>Question</th><th>Total</th><th>Results</th></tr>' + pastPollRows + '</table>'
+      : '') +
 
     '<hr>' +
     '<a class="link" href="/leaderboard">Leaderboard</a>' +
     '<a class="link" href="/">Home</a>'
-  , true));
+  , { wide: true, noAdmin: true }));
 });
 
 // ==================== ADMIN ACTIONS ====================
 
-function checkAdminToken(req, res) {
+app.get('/qr', async function(req, res) {
   const token = req.query.admin;
-  if (!token || !adminSessions.has(token)) { res.redirect(ADMIN_URL); return false; }
-  return token;
-}
-
-app.post(ADMIN_URL + '/add-name', function(req, res) {
-  const token = checkAdminToken(req, res); if (!token) return;
-  const name = (req.body.name || '').trim().toLowerCase();
-  if (!name) return res.redirect(ADMIN_URL + '/panel?admin=' + token + '&err=1&msg=' + encodeURIComponent('Name cannot be empty'));
-  allowedNames.add(name);
-  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Added: ' + name));
+  if (!token || !adminSessions.has(token)) return res.redirect(ADMIN_URL);
+  const sid = crypto.randomUUID();
+  sessions.set(sid, { expiresAt: Date.now() + SESSION_TTL });
+  const url = BASE_URL + '/check?session=' + sid;
+  const qr = await QRCode.toDataURL(url, { width: 320, margin: 2 });
+  res.send('<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<style>body{background:#1a1a2e;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;flex-direction:column;font-family:Arial,sans-serif;color:#fff;text-align:center}' +
+    'h1{font-size:2rem;margin-bottom:4px}p{color:#555;font-size:13px;margin-top:12px}' +
+    '.version{position:fixed;bottom:12px;right:16px;font-size:11px;color:rgba(255,255,255,0.2)}' +
+    '.back{position:fixed;bottom:12px;left:16px;font-size:11px;color:rgba(255,255,255,0.2);text-decoration:none}</style>' +
+    '<script>setTimeout(function(){window.location.reload();},60000);</script>' +
+    '</head><body>' +
+    '<h1>QR Cafe</h1>' +
+    '<h2 style="color:#aaa;font-size:1rem;margin-bottom:20px">Scan to check in</h2>' +
+    '<img src="' + qr + '" style="width:300px;height:300px;border-radius:16px"/>' +
+    '<p>Refreshes every minute</p>' +
+    '<span class="version">' + VERSION + '</span>' +
+    '<a href="' + ADMIN_URL + '/panel?admin=' + token + '" class="back">back to panel</a>' +
+    '</body></html>');
 });
 
-app.get(ADMIN_URL + '/remove-name', function(req, res) {
+app.post(ADMIN_URL + '/add-poll', function(req, res) {
   const token = checkAdminToken(req, res); if (!token) return;
-  const name = (req.query.name || '').trim().toLowerCase();
-  allowedNames.delete(name);
-  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Removed: ' + name));
+  if (polls.size >= 5) return res.redirect(ADMIN_URL + '/panel?admin=' + token + '&err=1&msg=' + encodeURIComponent('Max 5 polls'));
+  const question = (req.body.question || '').trim();
+  const options = [req.body.opt0, req.body.opt1, req.body.opt2, req.body.opt3]
+    .map(function(o) { return (o || '').trim(); })
+    .filter(function(o) { return o.length > 0; });
+  if (!question || options.length < 2) return res.redirect(ADMIN_URL + '/panel?admin=' + token + '&err=1&msg=' + encodeURIComponent('Need question and 2+ options'));
+  const pid = crypto.randomUUID();
+  polls.set(pid, { question: question, options: options, votes: options.map(function() { return 0; }), status: 'active' });
+  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Poll added'));
 });
 
-app.post(ADMIN_URL + '/sync-hive', async function(req, res) {
+app.post(ADMIN_URL + '/pause-poll', function(req, res) {
   const token = checkAdminToken(req, res); if (!token) return;
-  await fetchAllowedNames();
-  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Synced from Hive'));
+  const poll = polls.get(req.body.pid);
+  if (poll) poll.status = 'paused';
+  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Poll paused'));
 });
 
-app.post(ADMIN_URL + '/reset-pin', function(req, res) {
+app.post(ADMIN_URL + '/resume-poll', function(req, res) {
   const token = checkAdminToken(req, res); if (!token) return;
-  const oldKey = req.body.key;
-  const newPin = (req.body.newpin || '').trim();
-  if (!/^\d{4,6}$/.test(newPin)) return res.redirect(ADMIN_URL + '/panel?admin=' + token + '&err=1&msg=' + encodeURIComponent('PIN must be 4-6 digits'));
-  const data = users.get(oldKey);
-  if (!data) return res.redirect(ADMIN_URL + '/panel?admin=' + token + '&err=1&msg=' + encodeURIComponent('User not found'));
-  users.delete(oldKey);
-  users.set(userKey(data.name, newPin), data);
-  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('PIN reset for ' + data.name));
+  const poll = polls.get(req.body.pid);
+  if (poll) poll.status = 'active';
+  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Poll resumed'));
+});
+
+app.post(ADMIN_URL + '/stop-poll', function(req, res) {
+  const token = checkAdminToken(req, res); if (!token) return;
+  const pid = req.body.pid;
+  const poll = polls.get(pid);
+  if (poll) {
+    pastPolls.unshift({ question: poll.question, options: poll.options, votes: poll.votes });
+    if (pastPolls.length > 10) pastPolls.pop();
+    polls.delete(pid);
+  }
+  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Poll stopped and saved'));
 });
 
 app.post(ADMIN_URL + '/reset-checkin', function(req, res) {
@@ -575,43 +603,6 @@ app.post(ADMIN_URL + '/delete-user', function(req, res) {
   const name = data ? data.name : key;
   users.delete(key);
   res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Deleted: ' + name));
-});
-
-app.post(ADMIN_URL + '/add-poll', function(req, res) {
-  const token = checkAdminToken(req, res); if (!token) return;
-  if (polls.size >= 5) return res.redirect(ADMIN_URL + '/panel?admin=' + token + '&err=1&msg=' + encodeURIComponent('Max 5 polls reached'));
-  const question = (req.body.question || '').trim();
-  const options = [req.body.opt0, req.body.opt1, req.body.opt2, req.body.opt3]
-    .map(function(o) { return (o || '').trim(); })
-    .filter(function(o) { return o.length > 0; });
-  if (!question || options.length < 2) return res.redirect(ADMIN_URL + '/panel?admin=' + token + '&err=1&msg=' + encodeURIComponent('Need a question and at least 2 options'));
-  const pid = crypto.randomUUID();
-  polls.set(pid, { question: question, options: options, votes: options.map(function() { return 0; }) });
-  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Poll added'));
-});
-
-app.post(ADMIN_URL + '/delete-poll', function(req, res) {
-  const token = checkAdminToken(req, res); if (!token) return;
-  polls.delete(req.body.pid);
-  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Poll deleted'));
-});
-
-// ==================== RANDOMISER ====================
-
-app.get('/randomise', function(req, res) {
-  const user = (req.query.user || '').trim();
-  if (!user) return res.json({ ok: false, error: 'Not logged in' });
-  const data = users.get(user);
-  if (!data) return res.json({ ok: false, error: 'User not found' });
-  if (!data.randomPresses) data.randomPresses = 0;
-  if (!data.randomDay) data.randomDay = 0;
-  const today = Math.floor(Date.now() / DAY);
-  if (data.randomDay !== today) { data.randomPresses = 0; data.randomDay = today; }
-  if (data.randomPresses >= 3) return res.json({ ok: false, error: 'No more presses today! Come back tomorrow.' });
-  data.randomPresses++;
-  users.set(user, data);
-  const outcome = getRandomOutcome();
-  res.json({ ok: true, msg: outcome.msg, rare: outcome.rare, pressesLeft: 3 - data.randomPresses });
 });
 
 // ==================== START ====================
