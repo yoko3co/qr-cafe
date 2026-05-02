@@ -479,14 +479,12 @@ app.post('/has-init', async function(req, res) {
   const uuid = require('crypto').randomUUID();
   pendingAuths.set(uuid, { username, session, status: 'pending', deeplink: null });
   const ws = new (require('ws').WebSocket)('wss://hive-auth.arcange.eu');
-  ws.on('open', function() {
+ ws.on('open', function() {
+    const authReqData = { app: { name: 'QR Cafe', description: 'Community check-in' } };
     const payload = {
       cmd: 'auth_req',
       account: username,
-      app: { name: 'QR Cafe', description: 'Community check-in' },
-      challenge: { key_type: 'posting', challenge: JSON.stringify({ app: 'qr-cafe', session, ts: Date.now() }) },
-      auth_key: authKey,
-      uuid: uuid
+      data: Buffer.from(JSON.stringify(authReqData)).toString('base64')
     };
     ws.send(JSON.stringify(payload));
   });
@@ -494,10 +492,12 @@ app.post('/has-init', async function(req, res) {
     const msg = JSON.parse(data);
     const pending = pendingAuths.get(uuid);
     if (!pending) return;
-  if (msg.cmd === 'auth_wait') {
-      var authPayload = { account: username, uuid: msg.uuid, key: authKey, host: 'hive-auth.arcange.eu' };
+    console.log('HAS server msg:', msg.cmd);
+    if (msg.cmd === 'auth_wait') {
+      const authPayload = { account: username, uuid: msg.uuid, key: authKey, host: 'wss://has.hiveauth.com' };
       pending.deeplink = 'has://auth_req/' + Buffer.from(JSON.stringify(authPayload)).toString('base64');
       pending.status = 'waiting';
+      console.log('Deeplink set:', pending.deeplink);
     }
     if (msg.cmd === 'auth_ack') {
       pending.status = 'approved';
@@ -506,8 +506,7 @@ app.post('/has-init', async function(req, res) {
     if (msg.cmd === 'auth_nack') {
       pending.status = 'rejected';
       ws.close();
-    }
-  });
+ });
   ws.on('error', function() {
     const pending = pendingAuths.get(uuid);
     if (pending) pending.status = 'error';
