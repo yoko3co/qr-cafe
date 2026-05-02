@@ -13,7 +13,7 @@ const HIVE_ACCOUNT = 'test3333';
 
 app.use(express.urlencoded({ extended: true }));
 app.use(function(req, res, next) {
-  res.setHeader('Content-Security-Policy', "default-src 'self' 'unsafe-eval' 'unsafe-inline' wss://hive-auth.arcange.eu https:");
+res.setHeader('Content-Security-Policy', "default-src 'self' 'unsafe-eval' 'unsafe-inline' wss://hive-auth.arcange.eu https: data:");
   next();
 });
 app.use(express.json());
