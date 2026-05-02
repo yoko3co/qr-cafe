@@ -8,9 +8,9 @@ const DAY = 24 * 60 * 60 * 1000;
 const SESSION_TTL = 60 * 60 * 1000;
 const BASE_URL = process.env.BASE_URL || 'https://qr-cafe-shh2.onrender.com';
 const ADMIN_URL = '/hallmann';
-const VERSION = 'Krolestwo.2.0';
+const VERSION = 'Krolestwo.2.1';
 const HIVE_ACCOUNT = 'test3333';
-const ADMIN_ACCOUNTS = ['hallmann', 'hivedocu', 'sztukahbd'];
+const ADMIN_ACCOUNTS = ['hallmann', 'hivedocu'];
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -28,6 +28,28 @@ const polls = new Map();
 const pastPolls = [];
 const { allowedNames } = require('./allowedNames');
 
+// ==================== LOTTERY ====================
+
+const randomOutcomes = [
+  { msg: "Wygrales 5 rycarow!", rare: true },
+  { msg: "Wygrales 100!", rare: true },
+  { msg: "Niestety nic... Sprobuj jutro!", rare: false },
+  { msg: "Prawie! Ale jednak nie.", rare: false },
+  { msg: "Los mowi: dzisiaj nie.", rare: false },
+  { msg: "Moze jutro bedzie lepiej!", rare: false },
+  { msg: "Puste kieszenie, pelne serce.", rare: false },
+  { msg: "Wszechswiat sie zastanawia...", rare: false },
+  { msg: "Nie tym razem, przyjacielu.", rare: false },
+  { msg: "Sprobuj jeszcze raz jutro!", rare: false }
+];
+
+function getRandomOutcome() {
+  const rand = Math.random();
+  if (rand < 0.05) return randomOutcomes[0];
+  if (rand < 0.08) return randomOutcomes[1];
+  const others = randomOutcomes.filter(function(o) { return !o.rare; });
+  return others[Math.floor(Math.random() * others.length)];
+}
 
 // ==================== HIVE SYNC ====================
 
@@ -45,6 +67,8 @@ async function fetchAllowedNames() {
       meta.allowed_names.forEach(function(n) { allowedNames.add(n.toLowerCase()); });
       ADMIN_ACCOUNTS.forEach(function(a) { allowedNames.add(a); });
       console.log('Names loaded from Hive:', allowedNames.size);
+    } else {
+      console.log('No allowed_names in Hive profile, using defaults');
     }
   } catch (e) {
     console.log('Hive fetch failed:', e.message);
@@ -58,19 +82,16 @@ setInterval(fetchAllowedNames, 5 * 60 * 1000);
 
 function isAllowed(name) { return allowedNames.has(name.trim().toLowerCase()); }
 function isAdmin(name) { return ADMIN_ACCOUNTS.includes((name || '').trim().toLowerCase()); }
+
 function checkAdminToken(req, res) {
-  const token = req.query.admin || req.body && req.body.admin;
+  const token = req.query.admin;
   if (!token || !adminSessions.has(token)) { res.redirect(ADMIN_URL); return false; }
   return token;
 }
-function getUserKey(name) { return 'HIVE:' + name.trim().toLowerCase(); }
 
 // ==================== PAGE TEMPLATE ====================
 
-function page(title, body, opts) {
-  opts = opts || {};
-  const wide = opts.wide || false;
-  const noAdmin = opts.noAdmin || false;
+function page(title, body, wide) {
   return '<!DOCTYPE html><html lang="en"><head>' +
     '<meta charset="UTF-8">' +
     '<meta name="viewport" content="width=device-width, initial-scale=1">' +
@@ -78,8 +99,7 @@ function page(title, body, opts) {
     '<style>' +
       'body{font-family:Arial,sans-serif;background:#1a1a2e;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px;box-sizing:border-box}' +
       '.card{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:20px;padding:40px 32px;max-width:' + (wide ? '700px' : '480px') + ';width:100%;text-align:center;position:relative}' +
-      '.version{position:absolute;bottom:12px;right:16px;font-size:11px;color:rgba(255,255,255,0.2)}' +
-      '.admin-link{position:absolute;bottom:12px;left:16px;font-size:11px;color:rgba(255,255,255,0.2);text-decoration:none}' +
+      '.version{position:absolute;bottom:12px;right:16px;font-size:11px;color:rgba(255,255,255,0.25)}' +
       'h1{font-size:2rem;margin:0 0 8px}' +
       'h2{font-size:1.3rem;color:#e0e0e0;margin:0 0 16px}' +
       'p{color:#aaa;margin:0 0 16px;line-height:1.6}' +
@@ -94,7 +114,7 @@ function page(title, body, opts) {
       '.badge{display:inline-block;background:#fbbf24;color:#1c0a00;border-radius:999px;padding:6px 20px;font-weight:700;font-size:16px;margin-bottom:16px}' +
       '.error{color:#f87171;background:rgba(248,113,113,0.1);padding:10px;border-radius:8px;margin-bottom:12px;font-size:14px}' +
       '.success{color:#4ade80;background:rgba(74,222,128,0.1);padding:10px;border-radius:8px;margin-bottom:12px;font-size:14px}' +
-      '.info{color:#60a5fa;background:rgba(96,165,250,0.1);padding:10px;border-radius:8px;margin-bottom:12px;font-size:14px}' +
+      '.info{color:#60a5fa;background:rgba(96,165,250,0.1);padding:12px;border-radius:8px;margin-bottom:12px;font-size:14px}' +
       'a.link{color:#60a5fa;display:block;margin-top:12px;font-size:14px;text-decoration:none}' +
       'hr{border:none;border-top:1px solid rgba(255,255,255,0.1);margin:20px 0}' +
       'strong{color:#fff}' +
@@ -104,17 +124,17 @@ function page(title, body, opts) {
       '.bar-wrap{background:rgba(255,255,255,0.1);border-radius:999px;height:10px;margin-top:6px}' +
       '.bar{background:#fbbf24;height:10px;border-radius:999px}' +
       '.tag{display:inline-block;background:rgba(255,255,255,0.1);border-radius:6px;padding:4px 10px;font-size:13px;margin:3px}' +
-      '.nav{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}' +
+      '.nav{display:flex;gap:8px;margin-top:20px;flex-wrap:wrap}' +
       '.nav a{flex:1;min-width:80px}' +
     '</style>' +
     '</head><body><div class="card">' +
     body +
     '<div style="margin-top:20px">' +
-      '<a href="https://www.instagram.com/krolestwo.bez.kresu/" target="_blank" style="margin:0 8px;text-decoration:none;font-size:18px">📸</a>' +
-      '<a href="https://www.facebook.com/herberciarnia" target="_blank" style="margin:0 8px;text-decoration:none;font-size:18px">📘</a>' +
+      '<a href="https://www.instagram.com/krolestwo.bez.kresu/" target="_blank" style="margin:0 8px;text-decoration:none;font-size:20px">📸</a>' +
+      '<a href="https://www.facebook.com/herberciarnia" target="_blank" style="margin:0 8px;text-decoration:none;font-size:20px">📘</a>' +
     '</div>' +
     '<span class="version">' + VERSION + '</span>' +
-    (noAdmin ? '' : '<a href="/hallmann" class="admin-link">admin</a>') +
+    '<a href="/hallmann" style="position:absolute;bottom:12px;left:16px;font-size:11px;color:rgba(255,255,255,0.2);text-decoration:none">admin</a>' +
     '</div></body></html>';
 }
 
@@ -123,7 +143,7 @@ function navBar(userKey) {
     '<a href="/home?user=' + encodeURIComponent(userKey) + '" class="btn btn-gray">Home</a>' +
     '<a href="/leaderboard" class="btn btn-gray">Leaderboard</a>' +
     '<a href="/polls?user=' + encodeURIComponent(userKey) + '" class="btn btn-gray">Voting</a>' +
-    '<a href="/lottery?user=' + encodeURIComponent(userKey) + '" class="btn btn-gray">Lottery</a>' +
+    '<a href="/lottery?user=' + encodeURIComponent(userKey) + '" class="btn btn-gold">Lottery</a>' +
   '</div>';
 }
 
@@ -137,7 +157,7 @@ app.get('/', function(req, res) {
     '<hr>' +
     '<p style="font-size:13px;color:#666">Login with your Hive account</p>' +
     '<input type="text" id="hive-username" placeholder="Your Hive username"/>' +
-    '<a href="hive://browser?url=' + encodeURIComponent(BASE_URL + '/keychain-login') + '" class="btn btn-blue" id="open-keychain">Open in Keychain App</a>' +
+    '<a href="hive://browser?url=' + encodeURIComponent(BASE_URL + '/') + '" class="btn btn-blue" id="open-keychain">Open in Keychain App</a>' +
     '<script>' +
     'if(typeof window.hive_keychain !== "undefined"){' +
       'document.getElementById("open-keychain").style.display="none";' +
@@ -148,38 +168,57 @@ app.get('/', function(req, res) {
         'var u=document.getElementById("hive-username").value.trim().toLowerCase();' +
         'if(!u) return alert("Enter your Hive username");' +
         'window.hive_keychain.requestSignBuffer(u,"qrcafe-login","Posting",function(res){' +
-          'if(res.success){window.location.href="/keychain-login?user="+encodeURIComponent(res.data.username);}' +
+          'if(res.success){window.location.href="/home?user=HIVE:"+encodeURIComponent(res.data.username);}' +
           'else{alert("Error: "+res.message);}' +
         '});' +
       '};' +
       'document.getElementById("open-keychain").insertAdjacentElement("afterend",btn);' +
     '}' +
-    '</script>'
+    '</script>' +
+    '<a class="link" href="/leaderboard">View Leaderboard</a>' +
+    '<a class="link" href="/polls?user=guest">View Polls</a>'
   ));
-});
-
-// ==================== KEYCHAIN LOGIN ====================
-
-app.get('/keychain-login', function(req, res) {
-  const name = (req.query.user || '').trim().toLowerCase();
-  if (!name) return res.redirect('/');
-  const key = getUserKey(name);
-  if (!users.has(key)) users.set(key, { name: name, points: 0, lastVisit: 0, voted: {}, randomPresses: 0, randomDay: 0 });
-  res.redirect('/home?user=' + encodeURIComponent(key));
 });
 
 // ==================== HOME (LOGGED IN) ====================
 
 app.get('/home', function(req, res) {
   const key = req.query.user;
+  const name = key ? key.replace('HIVE:', '') : null;
+  if (!name) return res.redirect('/');
+  if (!users.has(key)) users.set(key, { name: name, points: 0, lastVisit: 0, voted: {}, randomPresses: 0, randomDay: 0 });
   const data = users.get(key);
-  if (!data) return res.redirect('/');
   res.send(page('Home',
     '<h1>Witamy w Krolestwie!</h1>' +
     '<h2>Hey, <strong>' + data.name + '</strong>!</h2>' +
-    '<div class="badge">' + data.points.toFixed(1) + ' points</div>' +
+    '<div class="badge">' + (data.points || 0).toFixed(1) + ' points</div>' +
     navBar(key)
   ));
+});
+
+// ==================== QR DISPLAY (tablet only) ====================
+
+app.get('/qr', async function(req, res) {
+  const token = req.query.admin;
+  if (!adminSessions.has(token)) return res.redirect(ADMIN_URL);
+  const sid = crypto.randomUUID();
+  sessions.set(sid, { expiresAt: Date.now() + SESSION_TTL });
+  const url = BASE_URL + '/check?session=' + sid;
+  const qr = await QRCode.toDataURL(url, { width: 320, margin: 2 });
+  res.send('<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<style>body{background:#1a1a2e;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;flex-direction:column;font-family:Arial,sans-serif;color:#fff;text-align:center}' +
+    'h1{font-size:2rem;margin-bottom:4px}' +
+    '.version{position:fixed;bottom:12px;right:16px;font-size:11px;color:rgba(255,255,255,0.2)}' +
+    '.back{position:fixed;bottom:12px;left:16px;font-size:11px;color:rgba(255,255,255,0.2);text-decoration:none}</style>' +
+    '<script>setTimeout(function(){window.location.reload();},60000);</script>' +
+    '</head><body>' +
+    '<h1>QR Cafe</h1>' +
+    '<p style="color:#aaa;margin-bottom:20px">Scan to check in</p>' +
+    '<img src="' + qr + '" style="width:300px;height:300px;border-radius:16px"/>' +
+    '<p style="color:#555;font-size:13px;margin-top:16px">Refreshes every minute</p>' +
+    '<span class="version">' + VERSION + '</span>' +
+    '<a href="' + ADMIN_URL + '/panel?admin=' + token + '" class="back">back to panel</a>' +
+    '</body></html>');
 });
 
 // ==================== CHECK IN (QR SCAN) ====================
@@ -194,7 +233,7 @@ app.get('/check', function(req, res) {
     '<h1>QR Cafe</h1>' +
     '<h2>Check In</h2>' +
     (error ? '<div class="error">' + error + '</div>' : '') +
-    '<p>Login with Hive Keychain to check in and earn points.</p>' +
+    '<p>Sign in with Hive Keychain to check in and earn points.</p>' +
     '<input type="text" id="hive-username" placeholder="Your Hive username"/>' +
     '<a href="hive://browser?url=' + encodeURIComponent(BASE_URL + '/check?session=' + session) + '" class="btn btn-blue" id="open-keychain">Open in Keychain App</a>' +
     '<script>' +
@@ -211,7 +250,7 @@ app.get('/check', function(req, res) {
           'else{alert("Error: "+res.message);}' +
         '});' +
       '};' +
-      'document.getElementById("open-keychain").insertAdjacentElement("afterend",btn);' +
+      'document.getElementById("open-keychain").parentNode.insertBefore(btn,document.getElementById("open-keychain").nextSibling);' +
     '}' +
     '</script>'
   ));
@@ -222,7 +261,8 @@ app.get('/hive-checkin', function(req, res) {
   const name = (req.query.user || '').trim().toLowerCase();
   const s = sessions.get(session);
   if (!s || Date.now() > s.expiresAt) return res.redirect('/check?session=' + session + '&error=' + encodeURIComponent('Session expired'));
-  const key = getUserKey(name);
+  if (!isAllowed(name)) return res.redirect('/check?session=' + session + '&error=' + encodeURIComponent('Your name is not on the guest list'));
+  const key = 'HIVE:' + name;
   if (!users.has(key)) users.set(key, { name: name, points: 0, lastVisit: 0, voted: {}, randomPresses: 0, randomDay: 0 });
   const data = users.get(key);
   if (data.lastVisit && Date.now() - data.lastVisit < DAY) {
@@ -235,7 +275,7 @@ app.get('/hive-checkin', function(req, res) {
     ));
   }
   data.lastVisit = Date.now();
-  data.points += 1;
+  data.points = (data.points || 0) + 1;
   users.set(key, data);
   res.send(page('Welcome!',
     '<h1>Witamy w Krolestwie!</h1>' +
@@ -253,7 +293,7 @@ app.get('/leaderboard', function(req, res) {
   const medals = ['1st', '2nd', '3rd'];
   let rows = sorted.length === 0 ? '<tr><td colspan="3" style="color:#555;padding:20px;text-align:center">No players yet</td></tr>' : '';
   sorted.forEach(function(u, i) {
-    rows += '<tr><td style="color:#fbbf24;font-weight:700">' + (medals[i] || i + 1) + '</td><td>' + u.name + '</td><td style="color:#fbbf24;font-weight:700">' + u.points.toFixed(1) + ' pts</td></tr>';
+    rows += '<tr><td style="color:#fbbf24;font-weight:700">' + (medals[i] || i + 1) + '</td><td>' + u.name + '</td><td style="color:#fbbf24;font-weight:700">' + (u.points || 0).toFixed(1) + ' pts</td></tr>';
   });
   res.send(page('Leaderboard',
     '<h1>Leaderboard</h1>' +
@@ -267,25 +307,31 @@ app.get('/leaderboard', function(req, res) {
 
 app.get('/polls', function(req, res) {
   const key = req.query.user;
-  const data = users.get(key);
-  if (!data) return res.redirect('/');
+  const data = key && key !== 'guest' ? users.get(key) : null;
+  const isGuest = !data;
+
   let pollHtml = '';
   if (polls.size === 0) {
     pollHtml = '<div class="info">No active polls right now.</div>';
   } else {
     polls.forEach(function(poll, pid) {
       if (poll.status === 'stopped') return;
-      const voted = data.voted && data.voted[pid];
+      const voted = data && data.voted && data.voted[pid];
       pollHtml += '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;margin-bottom:16px;text-align:left">' +
         '<strong>' + poll.question + '</strong>';
       if (poll.status === 'paused') {
         pollHtml += '<p style="color:#f87171;font-size:13px;margin-top:8px">This poll is paused.</p>';
+      } else if (isGuest) {
+        pollHtml += '<p style="color:#aaa;font-size:13px;margin-top:8px">Login to vote.</p>';
+        poll.options.forEach(function(opt) {
+          pollHtml += '<div class="btn btn-gray" style="margin-top:6px;opacity:0.5;text-align:left">' + opt + '</div>';
+        });
       } else if (voted) {
-        pollHtml += '<p style="color:#4ade80;font-size:13px;margin-top:8px">You voted for: <strong>' + poll.options[voted.optIndex] + '</strong></p>';
+        pollHtml += '<p style="color:#4ade80;font-size:13px;margin-top:8px">Voted: <strong>' + poll.options[voted.optIndex] + '</strong></p>';
+        const total = poll.votes.reduce(function(a, b) { return a + b; }, 0);
         poll.options.forEach(function(opt, i) {
-          const total = poll.votes.reduce(function(a, b) { return a + b; }, 0);
           const pct = total > 0 ? Math.round((poll.votes[i] / total) * 100) : 0;
-          pollHtml += '<div style="margin-top:8px;text-align:left"><div style="display:flex;justify-content:space-between"><span style="font-size:13px">' + opt + '</span><span style="color:#fbbf24;font-size:13px">' + pct + '%</span></div><div class="bar-wrap"><div class="bar" style="width:' + pct + '%"></div></div></div>';
+          pollHtml += '<div style="margin-top:8px"><div style="display:flex;justify-content:space-between"><span style="font-size:13px">' + opt + '</span><span style="color:#fbbf24;font-size:13px">' + pct + '%</span></div><div class="bar-wrap"><div class="bar" style="width:' + pct + '%"></div></div></div>';
         });
       } else {
         poll.options.forEach(function(opt, i) {
@@ -295,10 +341,11 @@ app.get('/polls', function(req, res) {
       pollHtml += '</div>';
     });
   }
+
   res.send(page('Voting',
     '<h1>Voting</h1>' +
     pollHtml +
-    navBar(key)
+    (isGuest ? '<a class="link" href="/">Login to vote</a>' : navBar(key))
   ));
 });
 
@@ -308,7 +355,7 @@ app.get('/poll-vote', function(req, res) {
   const key = req.query.user;
   const poll = polls.get(pid);
   const data = users.get(key);
-  if (!poll || !data) return res.redirect('/');
+  if (!poll || !data) return res.redirect('/polls?user=' + encodeURIComponent(key || 'guest'));
   if (poll.status !== 'active') return res.redirect('/polls?user=' + encodeURIComponent(key));
   if (data.voted && data.voted[pid]) return res.redirect('/polls?user=' + encodeURIComponent(key));
   if (isNaN(opt) || opt < 0 || opt >= poll.options.length) return res.redirect('/polls?user=' + encodeURIComponent(key));
@@ -321,19 +368,6 @@ app.get('/poll-vote', function(req, res) {
 
 // ==================== LOTTERY ====================
 
-const lotteryOutcomes = [
-  { msg: "Wygrales 5 rycarow!", rare: true },
-  { msg: "Wygrales 100!", rare: true },
-  { msg: "Niestety nic... Sprobuj jutro!", rare: false },
-  { msg: "Prawie! Ale jednak nie.", rare: false },
-  { msg: "Los mowi: dzisiaj nie.", rare: false },
-  { msg: "Moze jutro bedzie lepiej!", rare: false },
-  { msg: "Puste kieszenie, pelne serce.", rare: false },
-  { msg: "Wszechswiat sie zastanawia...", rare: false },
-  { msg: "Nie tym razem, przyjacielu.", rare: false },
-  { msg: "Sprobuj jeszcze raz jutro!", rare: false }
-];
-
 app.get('/lottery', function(req, res) {
   const key = req.query.user;
   const data = users.get(key);
@@ -344,20 +378,21 @@ app.get('/lottery', function(req, res) {
   res.send(page('Lottery',
     '<h1>Lottery</h1>' +
     '<h2>Try your luck!</h2>' +
-    '<p>' + pressesLeft + ' press' + (pressesLeft !== 1 ? 'es' : '') + ' remaining today</p>' +
-    '<div id="result" style="font-size:20px;font-weight:700;color:#fbbf24;min-height:32px;margin-bottom:16px"></div>' +
+    '<p style="color:#aaa">' + pressesLeft + ' press' + (pressesLeft !== 1 ? 'es' : '') + ' remaining today</p>' +
+    '<div id="result" style="font-size:22px;font-weight:700;color:#fbbf24;min-height:36px;margin-bottom:16px"></div>' +
     (pressesLeft > 0 ?
-      '<button class="btn btn-gold" onclick="spin()">Try your luck!</button>' :
-      '<div class="info">Come back tomorrow for more!</div>') +
+      '<button class="btn btn-gold" id="spin-btn" onclick="spin()">Try your luck!</button>' :
+      '<div class="info">Come back tomorrow for more presses!</div>') +
     navBar(key) +
     '<script>' +
     'function spin(){' +
+      'document.getElementById("spin-btn").disabled=true;' +
       'fetch("/lottery-spin?user=' + encodeURIComponent(key) + '")' +
       '.then(function(r){return r.json();})' +
       '.then(function(d){' +
-        'document.getElementById("result").innerText = d.msg;' +
-        'if(d.pressesLeft === 0) document.querySelector(".btn-gold") && (document.querySelector(".btn-gold").disabled=true);' +
-        'if(!d.ok) document.querySelector(".btn-gold") && document.querySelector(".btn-gold").remove();' +
+        'document.getElementById("result").innerText=d.msg;' +
+        'if(d.pressesLeft > 0){document.getElementById("spin-btn").disabled=false;}' +
+        'else{document.getElementById("spin-btn").outerHTML="<div class=\'info\'>No more presses today!</div>";}' +
       '});' +
     '}' +
     '</script>'
@@ -373,14 +408,7 @@ app.get('/lottery-spin', function(req, res) {
   if ((data.randomPresses || 0) >= 3) return res.json({ ok: false, msg: 'No more presses today!' });
   data.randomPresses = (data.randomPresses || 0) + 1;
   users.set(key, data);
-  const rand = Math.random();
-  let outcome;
-  if (rand < 0.05) outcome = lotteryOutcomes[0];
-  else if (rand < 0.08) outcome = lotteryOutcomes[1];
-  else {
-    const others = lotteryOutcomes.filter(function(o) { return !o.rare; });
-    outcome = others[Math.floor(Math.random() * others.length)];
-  }
+  const outcome = getRandomOutcome();
   res.json({ ok: true, msg: outcome.msg, pressesLeft: 3 - data.randomPresses });
 });
 
@@ -402,7 +430,7 @@ app.get(ADMIN_URL, function(req, res) {
     'function adminLogin(){' +
       'var u=document.getElementById("admin-username").value.trim().toLowerCase();' +
       'if(!u) return alert("Enter your Hive username");' +
-      'if(typeof window.hive_keychain==="undefined") return alert("Open this page inside Keychain browser");' +
+      'if(typeof window.hive_keychain==="undefined") return alert("Open this page inside Keychain browser.");' +
       'window.hive_keychain.requestSignBuffer(u,"qrcafe-admin-login","Posting",function(res){' +
         'if(res.success){' +
           'fetch("/admin-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:res.data.username})})' +
@@ -415,7 +443,7 @@ app.get(ADMIN_URL, function(req, res) {
       '});' +
     '}' +
     '</script>'
-  , { noAdmin: true }));
+  ));
 });
 
 app.post('/admin-auth', function(req, res) {
@@ -429,7 +457,8 @@ app.post('/admin-auth', function(req, res) {
 // ==================== ADMIN PANEL ====================
 
 app.get(ADMIN_URL + '/panel', function(req, res) {
-  const token = checkAdminToken(req, res); if (!token) return;
+  const token = req.query.admin;
+  if (!token || !adminSessions.has(token)) return res.redirect(ADMIN_URL + '?error=' + encodeURIComponent('Please login first'));
   const msg = req.query.msg ? decodeURIComponent(req.query.msg) : '';
   const isError = req.query.err === '1';
   const a = '?admin=' + token;
@@ -445,7 +474,7 @@ app.get(ADMIN_URL + '/panel', function(req, res) {
       const checkedIn = u.lastVisit && Date.now() - u.lastVisit < DAY ? 'Yes' : 'No';
       userRows += '<tr>' +
         '<td><strong>' + u.name + '</strong></td>' +
-        '<td>' + u.points.toFixed(1) + '</td>' +
+        '<td>' + (u.points || 0).toFixed(1) + '</td>' +
         '<td>' + checkedIn + '</td>' +
         '<td>' +
           '<form method="POST" action="' + ADMIN_URL + '/reset-checkin' + a + '" style="display:inline"><input type="hidden" name="key" value="' + key + '"/><button type="submit" class="btn btn-gold btn-sm">Reset CI</button></form> ' +
@@ -454,6 +483,11 @@ app.get(ADMIN_URL + '/panel', function(req, res) {
       '</tr>';
     });
   }
+
+  let nameTags = '';
+  allowedNames.forEach(function(n) {
+    nameTags += '<span class="tag">' + n + ' <a href="' + ADMIN_URL + '/remove-name?name=' + encodeURIComponent(n) + '&admin=' + token + '" style="color:#f87171;text-decoration:none;margin-left:4px">x</a></span>';
+  });
 
   let pollRows = '';
   polls.forEach(function(poll, pid) {
@@ -469,7 +503,7 @@ app.get(ADMIN_URL + '/panel', function(req, res) {
         (poll.status === 'paused' ?
           '<form method="POST" action="' + ADMIN_URL + '/resume-poll' + a + '" style="display:inline"><input type="hidden" name="pid" value="' + pid + '"/><button type="submit" class="btn btn-green btn-sm">Resume</button></form> ' : '') +
         (poll.status !== 'stopped' ?
-          '<form method="POST" action="' + ADMIN_URL + '/stop-poll' + a + '" style="display:inline"><input type="hidden" name="pid" value="' + pid + '"/><button type="submit" class="btn btn-red btn-sm">Stop</button></form>' : 'Stopped') +
+          '<form method="POST" action="' + ADMIN_URL + '/stop-poll' + a + '" style="display:inline"><input type="hidden" name="pid" value="' + pid + '"/><button type="submit" class="btn btn-red btn-sm">Stop & Save</button></form>' : '') +
       '</td>' +
     '</tr>';
   });
@@ -477,10 +511,10 @@ app.get(ADMIN_URL + '/panel', function(req, res) {
   let pastPollRows = '';
   pastPolls.forEach(function(poll) {
     const total = poll.votes.reduce(function(a, b) { return a + b; }, 0);
-    pastPollRows += '<tr><td>' + poll.question + '</td><td>' + total + ' votes</td><td>';
+    pastPollRows += '<tr><td>' + poll.question + '</td><td>' + total + '</td><td>';
     poll.options.forEach(function(opt, i) {
       const pct = total > 0 ? Math.round((poll.votes[i] / total) * 100) : 0;
-      pastPollRows += opt + ': ' + pct + '% ';
+      pastPollRows += '<div style="font-size:12px">' + opt + ': <strong>' + pct + '%</strong></div>';
     });
     pastPollRows += '</td></tr>';
   });
@@ -498,8 +532,22 @@ app.get(ADMIN_URL + '/panel', function(req, res) {
     '<div style="overflow-x:auto"><table><tr><th>Name</th><th>Pts</th><th>Today</th><th>Actions</th></tr>' + userRows + '</table></div>' +
 
     '<hr>' +
+    '<h2 style="text-align:left;margin-bottom:12px">Allowed Names (' + allowedNames.size + ')</h2>' +
+    '<p style="text-align:left;font-size:13px;color:#666">Synced from Hive: ' + HIVE_ACCOUNT + ' every 5 min</p>' +
+    '<details style="text-align:left;margin-bottom:12px"><summary style="cursor:pointer;color:#60a5fa;font-size:14px">Show names (' + allowedNames.size + ')</summary><div style="margin-top:8px">' + (nameTags || '<p style="color:#555">No names</p>') + '</div></details>' +
+    '<form method="POST" action="' + ADMIN_URL + '/add-name' + a + '" style="display:flex;gap:8px">' +
+      '<input type="text" name="name" placeholder="Add a name..." required style="flex:1;margin:0"/>' +
+      '<button type="submit" class="btn btn-green" style="width:auto;padding:8px 16px;margin:0">Add</button>' +
+    '</form>' +
+    '<form method="POST" action="' + ADMIN_URL + '/sync-hive' + a + '" style="margin-top:8px">' +
+      '<button type="submit" class="btn btn-blue">Sync from Hive now</button>' +
+    '</form>' +
+
+    '<hr>' +
     '<h2 style="text-align:left;margin-bottom:12px">Active Polls (' + polls.size + '/5)</h2>' +
-    '<table><tr><th>Question</th><th>Status</th><th>Votes</th><th>Actions</th></tr>' + (pollRows || '<tr><td colspan="4" style="color:#555;padding:12px;text-align:center">No polls yet</td></tr>') + '</table>' +
+    '<table><tr><th>Question</th><th>Status</th><th>Votes</th><th>Actions</th></tr>' +
+    (pollRows || '<tr><td colspan="4" style="color:#555;padding:12px;text-align:center">No polls yet</td></tr>') +
+    '</table>' +
     (polls.size < 5 ?
       '<form method="POST" action="' + ADMIN_URL + '/add-poll' + a + '" style="margin-top:16px">' +
         '<input type="text" name="question" placeholder="Poll question..." required style="margin-bottom:8px"/>' +
@@ -509,7 +557,7 @@ app.get(ADMIN_URL + '/panel', function(req, res) {
         '<input type="text" name="opt3" placeholder="Option 4 (optional)" style="margin-bottom:6px"/>' +
         '<button type="submit" class="btn btn-gold">Add Poll</button>' +
       '</form>'
-      : '<p style="color:#f87171;font-size:13px">Max 5 polls reached.</p>') +
+      : '<p style="color:#f87171;font-size:13px;margin-top:8px">Max 5 polls reached.</p>') +
 
     (pastPolls.length > 0 ?
       '<hr><h2 style="text-align:left;margin-bottom:12px">Past Polls</h2>' +
@@ -519,37 +567,54 @@ app.get(ADMIN_URL + '/panel', function(req, res) {
     '<hr>' +
     '<a class="link" href="/leaderboard">Leaderboard</a>' +
     '<a class="link" href="/">Home</a>'
-  , { wide: true, noAdmin: true }));
+  , true));
 });
 
 // ==================== ADMIN ACTIONS ====================
 
-app.get('/qr', async function(req, res) {
-  const token = req.query.admin;
-  if (!token || !adminSessions.has(token)) return res.redirect(ADMIN_URL);
-  const sid = crypto.randomUUID();
-  sessions.set(sid, { expiresAt: Date.now() + SESSION_TTL });
-  const url = BASE_URL + '/check?session=' + sid;
-  const qr = await QRCode.toDataURL(url, { width: 320, margin: 2 });
-  res.send('<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-    '<style>body{background:#1a1a2e;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;flex-direction:column;font-family:Arial,sans-serif;color:#fff;text-align:center}' +
-    'h1{font-size:2rem;margin-bottom:4px}p{color:#555;font-size:13px;margin-top:12px}' +
-    '.version{position:fixed;bottom:12px;right:16px;font-size:11px;color:rgba(255,255,255,0.2)}' +
-    '.back{position:fixed;bottom:12px;left:16px;font-size:11px;color:rgba(255,255,255,0.2);text-decoration:none}</style>' +
-    '<script>setTimeout(function(){window.location.reload();},60000);</script>' +
-    '</head><body>' +
-    '<h1>QR Cafe</h1>' +
-    '<h2 style="color:#aaa;font-size:1rem;margin-bottom:20px">Scan to check in</h2>' +
-    '<img src="' + qr + '" style="width:300px;height:300px;border-radius:16px"/>' +
-    '<p>Refreshes every minute</p>' +
-    '<span class="version">' + VERSION + '</span>' +
-    '<a href="' + ADMIN_URL + '/panel?admin=' + token + '" class="back">back to panel</a>' +
-    '</body></html>');
+app.post(ADMIN_URL + '/add-name', function(req, res) {
+  const token = checkAdminToken(req, res); if (!token) return;
+  const name = (req.body.name || '').trim().toLowerCase();
+  if (!name) return res.redirect(ADMIN_URL + '/panel?admin=' + token + '&err=1&msg=' + encodeURIComponent('Name cannot be empty'));
+  allowedNames.add(name);
+  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Added: ' + name));
+});
+
+app.get(ADMIN_URL + '/remove-name', function(req, res) {
+  const token = checkAdminToken(req, res); if (!token) return;
+  const name = (req.query.name || '').trim().toLowerCase();
+  allowedNames.delete(name);
+  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Removed: ' + name));
+});
+
+app.post(ADMIN_URL + '/sync-hive', async function(req, res) {
+  const token = checkAdminToken(req, res); if (!token) return;
+  await fetchAllowedNames();
+  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Synced from Hive'));
+});
+
+app.post(ADMIN_URL + '/reset-checkin', function(req, res) {
+  const token = checkAdminToken(req, res); if (!token) return;
+  const key = req.body.key;
+  const data = users.get(key);
+  if (!data) return res.redirect(ADMIN_URL + '/panel?admin=' + token + '&err=1&msg=' + encodeURIComponent('User not found'));
+  data.lastVisit = 0;
+  users.set(key, data);
+  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Check-in reset for ' + data.name));
+});
+
+app.post(ADMIN_URL + '/delete-user', function(req, res) {
+  const token = checkAdminToken(req, res); if (!token) return;
+  const key = req.body.key;
+  const data = users.get(key);
+  const name = data ? data.name : key;
+  users.delete(key);
+  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Deleted: ' + name));
 });
 
 app.post(ADMIN_URL + '/add-poll', function(req, res) {
   const token = checkAdminToken(req, res); if (!token) return;
-  if (polls.size >= 5) return res.redirect(ADMIN_URL + '/panel?admin=' + token + '&err=1&msg=' + encodeURIComponent('Max 5 polls'));
+  if (polls.size >= 5) return res.redirect(ADMIN_URL + '/panel?admin=' + token + '&err=1&msg=' + encodeURIComponent('Max 5 polls reached'));
   const question = (req.body.question || '').trim();
   const options = [req.body.opt0, req.body.opt1, req.body.opt2, req.body.opt3]
     .map(function(o) { return (o || '').trim(); })
@@ -584,25 +649,6 @@ app.post(ADMIN_URL + '/stop-poll', function(req, res) {
     polls.delete(pid);
   }
   res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Poll stopped and saved'));
-});
-
-app.post(ADMIN_URL + '/reset-checkin', function(req, res) {
-  const token = checkAdminToken(req, res); if (!token) return;
-  const key = req.body.key;
-  const data = users.get(key);
-  if (!data) return res.redirect(ADMIN_URL + '/panel?admin=' + token + '&err=1&msg=' + encodeURIComponent('User not found'));
-  data.lastVisit = 0;
-  users.set(key, data);
-  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Check-in reset for ' + data.name));
-});
-
-app.post(ADMIN_URL + '/delete-user', function(req, res) {
-  const token = checkAdminToken(req, res); if (!token) return;
-  const key = req.body.key;
-  const data = users.get(key);
-  const name = data ? data.name : key;
-  users.delete(key);
-  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Deleted: ' + name));
 });
 
 // ==================== START ====================
