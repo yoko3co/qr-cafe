@@ -169,35 +169,42 @@ app.get('/check', function(req, res) {
 '<a id="keychain-link" href="#" style="display:none;margin-top:8px" class="btn btn-gold">Open Keychain App</a>' +
 '<a class="link" href="/leaderboard">Leaderboard</a>' +
 '<a class="link" href="/events">Wydarzenia</a>' +
-'<script src="/has.js"></script>' +
 '<script>' +
-'var APP_META = {name:"QR Cafe",description:"Community check-in app",icon:undefined};' +
-'var auth = {username:undefined,token:undefined,expire:undefined,key:undefined};' +
+'var ws, authKey, uuid;' +
 'function hasLogin(){' +
   'var username = document.getElementById("hive-username").value.trim().toLowerCase();' +
   'if(!username) return alert("Please enter your Hive username");' +
-  'auth.username = username;' +
-  'document.getElementById("has-status").innerText = "Connecting to Hive... Open Keychain app and approve.";' +
-  'var challenge = {key_type:"posting",challenge:JSON.stringify({app:"qr-cafe",session:"' + session + '",ts:Date.now()})};' +
-  'HAS.authenticate(auth, APP_META, challenge, function(evt){' + 
-  'console.log("HAS event:", JSON.stringify(evt));' +
+  'document.getElementById("has-status").innerText = "Connecting to Hive...";' +
+  'authKey = crypto.getRandomValues(new Uint8Array(32));' +
+  'authKey = Array.from(authKey).map(b=>b.toString(16).padStart(2,"0")).join("");' +
+  'uuid = crypto.randomUUID();' +
+  'ws = new WebSocket("wss://hive-auth.arcange.eu");' +
+  'ws.onopen = function(){' +
+    'var payload = {cmd:"auth_req",account:username,app:{name:"QR Cafe",description:"Community check-in"},challenge:{key_type:"posting",challenge:JSON.stringify({app:"qr-cafe",session:"' + session + '",ts:Date.now()})},auth_key:authKey,uuid:uuid};' +
+    'ws.send(JSON.stringify(payload));' +
     'document.getElementById("has-status").innerText = "Waiting for Keychain approval...";' +
- 'console.log("HAS event:", JSON.stringify(evt));' +
-'var status = HAS.status();' +
-'var authPayload = {account:auth.username,uuid:evt.uuid,key:evt.key,host:status.host};' +
-'var encoded = btoa(JSON.stringify(authPayload));' +
-'var deeplink = "has://auth_req/" + encoded;' +
-'document.getElementById("has-status").innerText = "Tap below to open Keychain app";' +
-'document.getElementById("keychain-link").href = deeplink;' +
-'document.getElementById("keychain-link").style.display = "block";' +
-  '})' +
-  '.then(function(res){' +
-    'document.getElementById("has-status").innerText = "Approved! Checking in...";' +
-    'window.location.href = "/hive-checkin?session=' + session + '&user=" + encodeURIComponent(username) + "&token=" + encodeURIComponent(res.token);' +
-  '})' +
-  '.catch(function(err){' +
-    'document.getElementById("has-status").innerText = "Error: " + err.message;' +
-  '});' +
+  '};' +
+  'ws.onmessage = function(evt){' +
+    'var msg = JSON.parse(evt.data);' +
+    'console.log("HAS msg:", msg);' +
+    'if(msg.cmd === "auth_wait"){' +
+      'var authPayload = {account:username,uuid:msg.uuid,key:msg.key,host:"hive-auth.arcange.eu"};' +
+      'var deeplink = "has://auth_req/" + btoa(JSON.stringify(authPayload));' +
+      'document.getElementById("keychain-link").href = deeplink;' +
+      'document.getElementById("keychain-link").style.display = "block";' +
+      'document.getElementById("has-status").innerText = "Tap the button below to open Keychain!";' +
+    '}' +
+    'if(msg.cmd === "auth_ack"){' +
+      'document.getElementById("has-status").innerText = "Approved! Checking in...";' +
+      'window.location.href = "/hive-checkin?session=' + session + '&user=" + encodeURIComponent(username);' +
+    '}' +
+    'if(msg.cmd === "auth_nack"){' +
+      'document.getElementById("has-status").innerText = "Rejected. Please try again.";' +
+    '}' +
+  '};' +
+  'ws.onerror = function(){' +
+    'document.getElementById("has-status").innerText = "Connection error. Try again.";' +
+  '};' +
 '}' +
 '</script>'
   ));
