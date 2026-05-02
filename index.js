@@ -494,8 +494,8 @@ app.post('/has-init', async function(req, res) {
     const msg = JSON.parse(data);
     const pending = pendingAuths.get(uuid);
     if (!pending) return;
-    if (msg.cmd === 'auth_wait') {
-      const authPayload = { account: username, uuid: msg.uuid || uuid, key: authKey, host: 'hive-auth.arcange.eu' };
+  if (msg.cmd === 'auth_wait') {
+      var authPayload = { account: username, uuid: msg.uuid, key: authKey, host: 'hive-auth.arcange.eu' };
       pending.deeplink = 'has://auth_req/' + Buffer.from(JSON.stringify(authPayload)).toString('base64');
       pending.status = 'waiting';
     }
