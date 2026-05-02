@@ -33,7 +33,7 @@ const films = {
   d: 'Straznik Teksasu'
 };
 
-const allowedNames = new Set(['marek', 'rafal', 'anna', 'piotr', 'hallmann']);
+const allowedNames = new Set(['marek', 'rafal', 'anna', 'piotr', 'sztukahbd', 'test3333']);
 
 // ==================== HIVE SYNC ====================
 
