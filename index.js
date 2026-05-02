@@ -302,7 +302,7 @@ app.get('/leaderboard', function(req, res) {
     '<h1>Leaderboard</h1>' +
     '<h2>Top Players</h2>' +
     '<table><tr><th>#</th><th>Player</th><th>Points</th></tr>' + rows + '</table>' +
-    '<a class="link" href="/">Home</a>'
+    '<a class="link" href="/">Back</a>'
   ));
 });
 
