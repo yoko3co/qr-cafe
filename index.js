@@ -32,7 +32,7 @@ const films = {
   c: 'Die Hard',
   d: 'Straznik Teksasu'
 };
-
+const pendingAuths = new Map(); // uuid -> { username, status, deeplink }
 const allowedNames = new Set(['marek', 'rafal', 'anna', 'piotr', 'sztukahbd', 'test3333']);
 
 // ==================== HIVE SYNC ====================
@@ -174,56 +174,37 @@ app.get('/check', function(req, res) {
 '<a class="link" href="/leaderboard">Leaderboard</a>' +
 '<a class="link" href="/events">Wydarzenia</a>' +
 '<script>' +
-'var ws, authKey, uuid, pendingAccount, pendingSession, pollInterval;' +
+'var pollInterval, currentUuid;' +
 'function hasLogin(){' +
   'var username = document.getElementById("hive-username").value.trim().toLowerCase();' +
   'if(!username) return alert("Please enter your Hive username");' +
   'document.getElementById("has-status").innerText = "Connecting to Hive...";' +
-  'authKey = crypto.getRandomValues(new Uint8Array(32));' +
-  'authKey = Array.from(authKey).map(b=>b.toString(16).padStart(2,"0")).join("");' +
-  'uuid = crypto.randomUUID();' +
-  'ws = new WebSocket("wss://hive-auth.arcange.eu");' +
-  'ws.onopen = function(){' +
-    'var payload = {cmd:"auth_req",account:username,app:{name:"QR Cafe",description:"Community check-in"},challenge:{key_type:"posting",challenge:JSON.stringify({app:"qr-cafe",session:"' + session + '",ts:Date.now()})},auth_key:authKey,uuid:uuid};' +
-    'ws.send(JSON.stringify(payload));' +
-    'document.getElementById("has-status").innerText = "Waiting for Keychain approval...";' +
-  '};' +
-  'ws.onmessage = function(evt){' +
-    'var msg = JSON.parse(evt.data);' +
-    'console.log("HAS msg:", msg);' +
-    'if(msg.cmd === "auth_wait"){' +
-     'var authPayload = {account:username,uuid:msg.uuid,key:authKey,host:"hive-auth.arcange.eu"};' +
-      'var deeplink = "has://auth_req/" + btoa(JSON.stringify(authPayload));' +
-      'document.getElementById("keychain-link").href = deeplink;' +
-      'document.getElementById("keychain-link").style.display = "block";' +
-      'pollInterval = setInterval(function(){' +
-  'fetch("/has-check?account=" + encodeURIComponent(username) + "&token=" + encodeURIComponent(authKey))' +
+  'fetch("/has-init", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({username:username, session:"' + session + '"})})' +
   '.then(function(r){return r.json();})' +
   '.then(function(d){' +
-    'if(d.ok){' +
-      'clearInterval(pollInterval);' +
-      'document.getElementById("has-status").innerText = "Approved! Checking in...";' +
-      'window.location.href = "/hive-checkin?session=' + session + '&user=" + encodeURIComponent(username);' +
-    '}' +
+    'if(!d.ok) return alert("Connection failed");' +
+    'currentUuid = d.uuid;' +
+    'pollInterval = setInterval(function(){' +
+      'fetch("/has-status?uuid=" + currentUuid)' +
+      '.then(function(r){return r.json();})' +
+      '.then(function(d){' +
+        'if(d.deeplink && document.getElementById("keychain-link").style.display === "none"){' +
+          'document.getElementById("keychain-link").href = d.deeplink;' +
+          'document.getElementById("keychain-link").style.display = "block";' +
+          'document.getElementById("has-status").innerText = "Tap below to open Keychain!";' +
+        '}' +
+        'if(d.status === "approved"){' +
+          'clearInterval(pollInterval);' +
+          'document.getElementById("has-status").innerText = "Approved! Checking in...";' +
+          'window.location.href = "/hive-checkin?session=' + session + '&user=" + encodeURIComponent(d.username);' +
+        '}' +
+        'if(d.status === "rejected"){' +
+          'clearInterval(pollInterval);' +
+          'document.getElementById("has-status").innerText = "Rejected. Please try again.";' +
+        '}' +
+      '});' +
+    '}, 2000);' +
   '});' +
-'}, 2000);' +
-      'document.getElementById("has-status").innerText = "Tap the button below to open Keychain!";' +
-    '}' +
-  'if(msg.cmd === "auth_ack"){' +
-  'document.getElementById("has-status").innerText = "Approved! Checking in...";' +
-  'window.location.href = "/hive-checkin?session=' + session + '&user=" + encodeURIComponent(username);' +
-'}' +
-'if(msg.cmd === "auth_wait"){' +
-  'pendingAccount = username;' +
-  'pendingSession = "' + session + '";' +
-'}' +
-    'if(msg.cmd === "auth_nack"){' +
-      'document.getElementById("has-status").innerText = "Rejected. Please try again.";' +
-    '}' +
-  '};' +
-  'ws.onerror = function(){' +
-    'document.getElementById("has-status").innerText = "Connection error. Try again.";' +
-  '};' +
 '}' +
 '</script>'
   ));
@@ -489,6 +470,56 @@ app.get('/has-check', async function(req, res) {
   } catch(e) {
     res.json({ ok: false });
   }
+});
+app.post('/has-init', async function(req, res) {
+  const username = (req.body.username || '').trim().toLowerCase();
+  const session = req.body.session;
+  if (!username || !session) return res.json({ ok: false });
+  const authKey = require('crypto').randomUUID();
+  const uuid = require('crypto').randomUUID();
+  pendingAuths.set(uuid, { username, session, status: 'pending', deeplink: null });
+  const ws = new (require('ws').WebSocket)('wss://hive-auth.arcange.eu');
+  ws.on('open', function() {
+    const payload = {
+      cmd: 'auth_req',
+      account: username,
+      app: { name: 'QR Cafe', description: 'Community check-in' },
+      challenge: { key_type: 'posting', challenge: JSON.stringify({ app: 'qr-cafe', session, ts: Date.now() }) },
+      auth_key: authKey,
+      uuid: uuid
+    };
+    ws.send(JSON.stringify(payload));
+  });
+  ws.on('message', function(data) {
+    const msg = JSON.parse(data);
+    const pending = pendingAuths.get(uuid);
+    if (!pending) return;
+    if (msg.cmd === 'auth_wait') {
+      const authPayload = { account: username, uuid: msg.uuid || uuid, key: authKey, host: 'hive-auth.arcange.eu' };
+      pending.deeplink = 'has://auth_req/' + Buffer.from(JSON.stringify(authPayload)).toString('base64');
+      pending.status = 'waiting';
+    }
+    if (msg.cmd === 'auth_ack') {
+      pending.status = 'approved';
+      ws.close();
+    }
+    if (msg.cmd === 'auth_nack') {
+      pending.status = 'rejected';
+      ws.close();
+    }
+  });
+  ws.on('error', function() {
+    const pending = pendingAuths.get(uuid);
+    if (pending) pending.status = 'error';
+  });
+  res.json({ ok: true, uuid });
+});
+
+app.get('/has-status', function(req, res) {
+  const uuid = req.query.uuid;
+  const pending = pendingAuths.get(uuid);
+  if (!pending) return res.json({ status: 'notfound' });
+  res.json({ status: pending.status, deeplink: pending.deeplink, username: pending.username, session: pending.session });
 });
 app.listen(PORT, function() {
   console.log('QR Cafe ' + VERSION + ' running at ' + BASE_URL);
