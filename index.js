@@ -124,37 +124,17 @@ function page(title, body) {
 
 // ==================== ROUTES ====================
 
-app.get('/', function(req, res) {
-  res.send(page('QR Cafe',
-    '<h1>QR Cafe</h1>' +
-    '<h2>Witamy w Krolestwie!</h2>' +
-    '<a href="/check-home" class="btn btn-green" style="margin-top:8px">Check In</a>' +
-    '<a href="/leaderboard" class="btn btn-gold" style="margin-top:8px">Leaderboard</a>' +
-    '<a href="/votes" class="btn btn-blue" style="margin-top:8px">Film Votes</a>' +
-    '<a href="/events" class="btn btn-blue" style="margin-top:8px">Wydarzenia</a>'
-  ));
-});
-
-app.get('/check-home', function(req, res) {
-  res.send(page('Check In',
-    '<h1>QR Cafe</h1>' +
-    '<h2>Witamy w Krolestwie!</h2>' +
-    '<p>Please scan the QR code at the venue to check in.</p>' +
-    '<a class="link" href="/">Back to home</a>'
-  ));
-});
+app.get('/', function(req, res) { res.redirect('/generate'); });
 
 // -------------------- Generate QR --------------------
 
 app.get('/generate', async function(req, res) {
-  const adminUser = req.query.admin;
-  if (!adminUser) return res.redirect('/hallmann');
   const sid = crypto.randomUUID();
   sessions.set(sid, { expiresAt: Date.now() + SESSION_TTL });
   const url = BASE_URL + '/check?session=' + sid;
   const qr = await QRCode.toDataURL(url, { width: 280, margin: 2 });
   res.send(page('QR Code',
-    '<h1>QR Code</h1>' +
+    '<h1>QR Cafe</h1>' +
     '<h2>Scan to Check In</h2>' +
     '<img src="' + qr + '" style="width:250px;height:250px;border-radius:12px;margin:12px 0"/>' +
     '<p style="font-size:13px;color:#555">Session valid for 1 hour</p>' +
