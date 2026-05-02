@@ -188,7 +188,7 @@ app.get('/check', function(req, res) {
     'var msg = JSON.parse(evt.data);' +
     'console.log("HAS msg:", msg);' +
     'if(msg.cmd === "auth_wait"){' +
-      'var authPayload = {account:username,uuid:msg.uuid,key:msg.key,host:"hive-auth.arcange.eu"};' +
+     'var authPayload = {account:username,uuid:msg.uuid,key:authKey,host:"hive-auth.arcange.eu"};' +
       'var deeplink = "has://auth_req/" + btoa(JSON.stringify(authPayload));' +
       'document.getElementById("keychain-link").href = deeplink;' +
       'document.getElementById("keychain-link").style.display = "block";' +
