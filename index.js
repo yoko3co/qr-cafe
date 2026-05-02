@@ -307,8 +307,7 @@ const sorted = Array.from(users.values()).sort(function(a, b) { return (b[type] 
   <td>${u.name}</td>
   <td style="color:#fbbf24;font-weight:700">${(u.points || 0).toFixed(1)} pts</td>
   <td style="color:#fbbf24;font-weight:700">${u[type] || 0}</td>
-</tr>`;  rows += '<tr><td style="color:#fbbf24;font-weight:700">' + (medals[i] || i + 1) + '</td><td>' + u.name + '</td><td style="color:#fbbf24;font-weight:700">' + (u.points || 0).toFixed(1) + ' pts'<td style="color:#fbbf24;font-weight:700">' + (u[type] || 0) + '</td>'';
-  });
+rows += '<tr><td style="color:#fbbf24;font-weight:700">' + (medals[i] || i + 1) + '</td><td>' + u.name + '</td><td style="color:#fbbf24;font-weight:700">' + (u[type] || 0) + '</td></tr>';  });
   res.send(page('Leaderboard',
     '<h1>Leaderboard</h1>' +
     '<h2>Top Players</h2>' +
