@@ -1,6 +1,7 @@
 const express = require('express');
 const QRCode = require('qrcode');
 const crypto = require('crypto');
+const { getDailyJoke, getDailyQuestion, getRandomOutcome } = require('./jokes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -119,7 +120,16 @@ function page(title, body, wide) {
 }
 
 // ==================== HOME (USERS) ====================
-
+app.get('/', function(req, res) {
+  const joke = getDailyJoke();
+  const question = getDailyQuestion();
+  const optButtons = question.opts.map(function(opt) {
+    return '<button class="btn btn-gray" style="margin-bottom:6px" onclick="this.style.background=\'#4ade80\';this.style.color=\'#052e16\'">' + opt + '</button>';
+  }).join('');
+  res.send(page('QR Cafe',
+    '<h1>QR Cafe</h1>' +
+    '<h2>Witamy w Krolestwie!</h2>' +
+    '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16
 app.get('/', function(req, res) {
   res.send(page('QR Cafe',
     '<h1>QR Cafe</h1>' +
@@ -262,7 +272,25 @@ app.get('/hive-checkin', function(req, res) {
     '<h2>Welcome, ' + data.name + '!</h2>' +
     '<p>Checked in with Hive Keychain!</p>' +
     '<div class="badge">+1.1 points (Hive bonus!) - Total: ' + data.points.toFixed(1) + '</div>' +
-    '<a href="/polls" class="btn btn-gold" style="margin-top:8px">Vote in polls!</a>' +
+    '<a href="#" onclick="randomise()" class="btn btn-green" style="margin-top:8px" id="rand-btn">Try your luck! (3x today)</a>' +
+'<div id="rand-result" style="margin-top:12px;font-size:18px;font-weight:700;color:#fbbf24"></div>' +
+'<script>' +
+'var userKey = "HIVE:' + name + '";' +
+'function randomise(){' +
+  'fetch("/randomise?user="+encodeURIComponent(userKey))' +
+  '.then(function(r){return r.json();})' +
+  '.then(function(d){' +
+    'if(d.ok){' +
+      'document.getElementById("rand-result").innerText = d.msg;' +
+      'document.getElementById("rand-btn").innerText = "Try your luck! (" + d.pressesLeft + "x left)";' +
+      'if(d.pressesLeft === 0) document.getElementById("rand-btn").style.opacity = "0.4";' +
+    '} else {' +
+      'document.getElementById("rand-result").innerText = d.error;' +
+      'document.getElementById("rand-btn").style.opacity = "0.4";' +
+    '}' +
+  '});' +
+'}' +
+'</script>' +' +
     '<a class="link" href="/leaderboard">Leaderboard</a>'
   ));
 });
@@ -561,6 +589,24 @@ app.post(ADMIN_URL + '/delete-poll', function(req, res) {
   const token = checkAdminToken(req, res); if (!token) return;
   polls.delete(req.body.pid);
   res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Poll deleted'));
+});
+
+// ==================== RANDOMISER ====================
+
+app.get('/randomise', function(req, res) {
+  const user = (req.query.user || '').trim();
+  if (!user) return res.json({ ok: false, error: 'Not logged in' });
+  const data = users.get(user);
+  if (!data) return res.json({ ok: false, error: 'User not found' });
+  if (!data.randomPresses) data.randomPresses = 0;
+  if (!data.randomDay) data.randomDay = 0;
+  const today = Math.floor(Date.now() / DAY);
+  if (data.randomDay !== today) { data.randomPresses = 0; data.randomDay = today; }
+  if (data.randomPresses >= 3) return res.json({ ok: false, error: 'No more presses today! Come back tomorrow.' });
+  data.randomPresses++;
+  users.set(user, data);
+  const outcome = getRandomOutcome();
+  res.json({ ok: true, msg: outcome.msg, rare: outcome.rare, pressesLeft: 3 - data.randomPresses });
 });
 
 // ==================== START ====================
