@@ -189,7 +189,8 @@ app.get('/check', function(req, res) {
       '.then(function(r){return r.json();})' +
       '.then(function(d){' +
         'if(d.deeplink && document.getElementById("keychain-link").style.display === "none"){' +
-          'document.getElementById("keychain-link").href = d.deeplink;' +
+   'var encoded = d.deeplink.replace("has://auth_req/","");' +
+'document.getElementById("keychain-link").href = "/has-redirect?payload=" + encoded;' +
           'document.getElementById("keychain-link").style.display = "block";' +
           'document.getElementById("has-status").innerText = "Tap below to open Keychain!";' +
         '}' +
@@ -508,6 +509,18 @@ app.get('/has-status', function(req, res) {
   const pending = pendingAuths.get(uuid);
   if (!pending) return res.json({ status: 'notfound' });
   res.json({ status: pending.status, deeplink: pending.deeplink, username: pending.username, session: pending.session });
+});
+app.get('/has-redirect', function(req, res) {
+  const payload = req.query.payload;
+  if (!payload) return res.send('Missing payload');
+  res.send('<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>' +
+    '<script>' +
+    'window.location.href = "has://auth_req/' + payload + '";' +
+    'setTimeout(function(){' +
+      'document.body.innerHTML = "<p style=\'font-family:Arial;text-align:center;padding:40px\'>If Keychain did not open, make sure it is installed.<br><br><a href=\'https://play.google.com/store/apps/details?id=com.mobilekeychain\'>Download for Android</a><br><a href=\'https://apps.apple.com/app/hive-keychain/id1552190357\'>Download for iOS</a></p>";' +
+    '}, 2000);' +
+    '</script>' +
+    '</body></html>');
 });
 app.listen(PORT, function() {
   console.log('QR Cafe ' + VERSION + ' running at ' + BASE_URL);
