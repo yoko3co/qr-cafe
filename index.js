@@ -121,6 +121,29 @@ function page(title, body, wide) {
 
 // ==================== HOME (USERS) ====================
 
+app.get('/', function(req, res) {
+  const joke = getDailyJoke();
+  const question = getDailyQuestion();
+  const optButtons = question.opts.map(function(opt) {
+    return '<button class="btn btn-gray" style="margin-bottom:6px" onclick="this.style.background=\'#4ade80\';this.style.color=\'#052e16\'">' + opt + '</button>';
+  }).join('');
+  res.send(page('QR Cafe',
+    '<h1>QR Cafe</h1>' +
+    '<h2>Witamy w Krolestwie!</h2>' +
+    '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;margin-bottom:16px;text-align:left">' +
+      '<p style="color:#fbbf24;font-size:13px;margin-bottom:8px">Joke of the day</p>' +
+      '<p style="color:#fff;font-size:14px;margin:0">' + joke + '</p>' +
+    '</div>' +
+    '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;margin-bottom:16px;text-align:left">' +
+      '<p style="color:#60a5fa;font-size:13px;margin-bottom:8px">Question of the day</p>' +
+      '<p style="color:#fff;font-size:15px;margin-bottom:12px">' + question.q + '</p>' +
+      optButtons +
+    '</div>' +
+    '<a href="/leaderboard" class="btn btn-gold" style="margin-top:8px">Leaderboard</a>' +
+    '<a href="/polls" class="btn btn-blue" style="margin-top:8px">Polls & Votes</a>' +
+    '<a href="/events" class="btn btn-gray" style="margin-top:8px">Wydarzenia</a>'
+  ));
+});
 
 // ==================== QR DISPLAY (tablet only, no nav) ====================
 
