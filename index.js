@@ -183,7 +183,7 @@ app.get('/check', function(req, res) {
     '});' +
   '});' +
 '}' +
-'</script>'
+'</script>' +
 '<div id="has-status" style="margin-top:10px;font-size:13px;color:#aaa"></div>' +
 '<a id="keychain-link" href="#" style="display:none;margin-top:8px" class="btn btn-gold">Open Keychain App</a>' +
 '<a class="link" href="/leaderboard">Leaderboard</a>' +
