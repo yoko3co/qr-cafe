@@ -174,7 +174,7 @@ app.get('/check', function(req, res) {
 '<a class="link" href="/leaderboard">Leaderboard</a>' +
 '<a class="link" href="/events">Wydarzenia</a>' +
 '<script>' +
-'var ws, authKey, uuid;' +
+'var ws, authKey, uuid, pendingAccount, pendingSession, pollInterval;' +
 'function hasLogin(){' +
   'var username = document.getElementById("hive-username").value.trim().toLowerCase();' +
   'if(!username) return alert("Please enter your Hive username");' +
@@ -196,12 +196,27 @@ app.get('/check', function(req, res) {
       'var deeplink = "has://auth_req/" + btoa(JSON.stringify(authPayload));' +
       'document.getElementById("keychain-link").href = deeplink;' +
       'document.getElementById("keychain-link").style.display = "block";' +
-      'document.getElementById("has-status").innerText = "Tap the button below to open Keychain!";' +
-    '}' +
-    'if(msg.cmd === "auth_ack"){' +
+      'pollInterval = setInterval(function(){' +
+  'fetch("/has-check?account=" + encodeURIComponent(username) + "&token=" + encodeURIComponent(authKey))' +
+  '.then(function(r){return r.json();})' +
+  '.then(function(d){' +
+    'if(d.ok){' +
+      'clearInterval(pollInterval);' +
       'document.getElementById("has-status").innerText = "Approved! Checking in...";' +
       'window.location.href = "/hive-checkin?session=' + session + '&user=" + encodeURIComponent(username);' +
     '}' +
+  '});' +
+'}, 2000);' +
+      'document.getElementById("has-status").innerText = "Tap the button below to open Keychain!";' +
+    '}' +
+  'if(msg.cmd === "auth_ack"){' +
+  'document.getElementById("has-status").innerText = "Approved! Checking in...";' +
+  'window.location.href = "/hive-checkin?session=' + session + '&user=" + encodeURIComponent(username);' +
+'}' +
+'if(msg.cmd === "auth_wait"){' +
+  'pendingAccount = username;' +
+  'pendingSession = "' + session + '";' +
+'}' +
     'if(msg.cmd === "auth_nack"){' +
       'document.getElementById("has-status").innerText = "Rejected. Please try again.";' +
     '}' +
@@ -459,6 +474,22 @@ app.post(ADMIN_URL + '/reset-votes', function(req, res) {
 
 // ==================== START ====================
 
+app.get('/has-check', async function(req, res) {
+  const token = req.query.token;
+  const account = req.query.account;
+  if (!token || !account) return res.json({ ok: false });
+  try {
+    const response = await fetch('https://hive-auth.arcange.eu/api/auth_check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ account: account, token: token })
+    });
+    const data = await response.json();
+    res.json({ ok: data.valid === true });
+  } catch(e) {
+    res.json({ ok: false });
+  }
+});
 app.listen(PORT, function() {
   console.log('QR Cafe ' + VERSION + ' running at ' + BASE_URL);
   console.log('Admin: ' + BASE_URL + ADMIN_URL);
