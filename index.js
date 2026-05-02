@@ -185,8 +185,9 @@ app.get('/', function(req, res) {
 app.get('/home', function(req, res) {
   const key = req.query.user;
   const name = key ? key.replace('HIVE:', '') : null;
-  if (!name) return res.redirect('/');
-  if (!users.has(key)) users.set(key, { name: name, points: 0, lastVisit: 0, voted: {}, randomPresses: 0, randomDay: 0 });
+if (!name) return res.redirect('/');
+if (!isAllowed(name)) return res.send(page('Access Denied', '<h1>Access Denied</h1><p>Your account is not on the guest list. Zapytaj w Krolestwie!</p><a class="link" href="/">Back</a>'));
+if (!users.has(key)) users.set(key, { name: name, points: 0, lastVisit: 0, voted: {}, randomPresses: 0, randomDay: 0 });
   const data = users.get(key);
   res.send(page('Home',
     '<h1>Witamy w Krolestwie!</h1>' +
