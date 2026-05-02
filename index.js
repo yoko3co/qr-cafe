@@ -120,25 +120,7 @@ function page(title, body, wide) {
 }
 
 // ==================== HOME (USERS) ====================
-app.get('/', function(req, res) {
-  const joke = getDailyJoke();
-  const question = getDailyQuestion();
-  const optButtons = question.opts.map(function(opt) {
-    return '<button class="btn btn-gray" style="margin-bottom:6px" onclick="this.style.background=\'#4ade80\';this.style.color=\'#052e16\'">' + opt + '</button>';
-  }).join('');
-  res.send(page('QR Cafe',
-    '<h1>QR Cafe</h1>' +
-    '<h2>Witamy w Krolestwie!</h2>' +
-    '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;margin-bottom:16px;text-align:left">' +
-app.get('/', function(req, res) {
-  res.send(page('QR Cafe',
-    '<h1>QR Cafe</h1>' +
-    '<h2>Witamy w Krolestwie!</h2>' +
-    '<a href="/leaderboard" class="btn btn-gold" style="margin-top:8px">Leaderboard</a>' +
-    '<a href="/polls" class="btn btn-blue" style="margin-top:8px">Polls & Votes</a>' +
-    '<a href="/events" class="btn btn-gray" style="margin-top:8px">Wydarzenia</a>'
-  ));
-});
+
 
 // ==================== QR DISPLAY (tablet only, no nav) ====================
 
