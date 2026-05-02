@@ -129,7 +129,7 @@ app.get('/', function(req, res) {
   res.send(page('QR Cafe',
     '<h1>QR Cafe</h1>' +
     '<h2>Witamy w Krolestwie!</h2>' +
-    '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16
+    '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;margin-bottom:16px;text-align:left">' +
 app.get('/', function(req, res) {
   res.send(page('QR Cafe',
     '<h1>QR Cafe</h1>' +
