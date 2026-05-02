@@ -25,6 +25,7 @@ const sessions = new Map();
 const users = new Map();
 const adminSessions = new Set();
 const polls = new Map();
+let blockchainVoting = true;
 const pastPolls = [];
 const { allowedNames } = require('./allowedNames');
 
@@ -156,6 +157,7 @@ app.get('/', function(req, res) {
     '<div class="info">Chcesz zalozyc konto?<br><strong>Zapytaj w Krolestwie!</strong></div>' +
     '<hr>' +
     '<p style="font-size:13px;color:#666">Login with your Hive account</p>' +
+    '<p style="font-size:11px;color:#555;margin-bottom:12px">By logging in you agree that your participation data (username, check-ins, votes) is stored solely for community engagement and will never be shared or used commercially.</p>' +
     '<input type="text" id="hive-username" placeholder="Your Hive username"/>' +
     '<a href="hive://browser?url=' + encodeURIComponent(BASE_URL + '/') + '" class="btn btn-blue" id="open-keychain">Open in Keychain App</a>' +
     '<script>' +
@@ -338,8 +340,12 @@ app.get('/polls', function(req, res) {
         });
       } else {
         poll.options.forEach(function(opt, i) {
-          pollHtml += '<a href="/poll-vote?pid=' + pid + '&opt=' + i + '&user=' + encodeURIComponent(key) + '" class="btn btn-gray" style="margin-top:6px;text-align:left">' + opt + '</a>';
-        });
+  if (blockchainVoting) {
+    pollHtml += '<button onclick="chainVote(\'' + pid + '\',' + i + ',\'' + opt + '\')" class="btn btn-gray" style="margin-top:6px;text-align:left">' + opt + '</button>';
+  } else {
+    pollHtml += '<a href="/poll-vote?pid=' + pid + '&opt=' + i + '&user=' + encodeURIComponent(key) + '" class="btn btn-gray" style="margin-top:6px;text-align:left">' + opt + '</a>';
+  }
+});
       }
       pollHtml += '</div>';
     });
@@ -348,7 +354,21 @@ app.get('/polls', function(req, res) {
   res.send(page('Voting',
     '<h1>Voting</h1>' +
     pollHtml +
-    (isGuest ? '<a class="link" href="/">Login to vote</a>' : navBar(key))
+    (isGuest ? '<a class="link" href="/">Login to vote</a>' : navBar(key)) +
+(blockchainVoting && !isGuest ?
+  '<script>' +
+  'function chainVote(pid, opt, optText){' +
+    'if(!confirm("Your vote for \\"" + optText + "\\" will be permanently recorded on Hive blockchain. Continue?")) return;' +
+    'if(typeof window.hive_keychain === "undefined") return alert("Open in Keychain browser to vote on blockchain.");' +
+    'var user = "' + (key ? key.replace("HIVE:", "") : "") + '";' +
+    'var json = JSON.stringify({app:"qr-cafe",action:"vote",poll:pid,choice:opt,optionText:optText});' +
+    'window.hive_keychain.requestCustomJson(user,"qr-cafe-vote",("Posting"),"[]",json,"QR Cafe Vote",function(res){' +
+      'if(res.success){window.location.href="/poll-vote?pid="+pid+"&opt="+opt+"&user=' + encodeURIComponent(key || '') + '";}' +
+      'else{alert("Error: "+res.message);}' +
+    '});' +
+  '}' +
+  '</script>'
+  : '')
   ));
 });
 
@@ -529,6 +549,12 @@ app.get(ADMIN_URL + '/panel', function(req, res) {
 
     '<hr>' +
     '<a href="/qr' + a + '" class="btn btn-green">Generate QR Code</a>' +
+    '<hr>' +
+'<h2 style="text-align:left;margin-bottom:12px">Blockchain Voting</h2>' +
+'<p style="text-align:left;color:#aaa;font-size:13px">Currently: <strong style="color:' + (blockchainVoting ? '#4ade80' : '#f87171') + '">' + (blockchainVoting ? 'ON — votes stored on Hive chain' : 'OFF — votes stored locally') + '</strong></p>' +
+'<form method="POST" action="' + ADMIN_URL + '/toggle-blockchain' + a + '">' +
+  '<button type="submit" class="btn ' + (blockchainVoting ? 'btn-red' : 'btn-green') + '">' + (blockchainVoting ? 'Turn OFF (use local)' : 'Turn ON (use blockchain)') + '</button>' +
+'</form>' +
 
     '<hr>' +
     '<h2 style="text-align:left;margin-bottom:12px">Users (' + users.size + ')</h2>' +
@@ -655,7 +681,11 @@ app.post(ADMIN_URL + '/stop-poll', function(req, res) {
 });
 
 // ==================== START ====================
-
+app.post(ADMIN_URL + '/toggle-blockchain', function(req, res) {
+  const token = checkAdminToken(req, res); if (!token) return;
+  blockchainVoting = !blockchainVoting;
+  res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Blockchain voting: ' + (blockchainVoting ? 'ON' : 'OFF')));
+});
 app.listen(PORT, function() {
   console.log('QR Cafe ' + VERSION + ' running at ' + BASE_URL);
   console.log('Admin: ' + BASE_URL + ADMIN_URL);
