@@ -69,7 +69,7 @@ async function initDB() {
     `);
     console.log('Database ready');
   } catch (e) {
-    console.log('DB init error:', e.message);
+    console.log('DB init error:', e.message, e.stack);
   }
 }
 
