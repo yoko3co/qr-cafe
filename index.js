@@ -62,12 +62,16 @@ async function initDB() {
         stopped_at BIGINT DEFAULT 0
       );
     `);
-    await pool.query(`
+await pool.query(`
       CREATE TABLE IF NOT EXISTS allowed_names (
         name TEXT PRIMARY KEY
       );
     `);
-    console.log('Database ready');
+    const { allowedNames } = require('./allowedNames');
+    for (const name of allowedNames) {
+      await pool.query('INSERT INTO allowed_names (name) VALUES ($1) ON CONFLICT DO NOTHING', [name]);
+    }
+    console.log('Database ready, names seeded:', allowedNames.size);
   } catch (e) {
     console.log('DB init error:', e.message, e.stack);
   }
