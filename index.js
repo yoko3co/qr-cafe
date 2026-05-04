@@ -66,7 +66,6 @@ async function initDB() {
         last_visit BIGINT DEFAULT 0,
         events_today JSONB DEFAULT '{}',
         voted JSONB DEFAULT '{}',
-       events_today JSONB DEFAULT '{}',
         random_presses INTEGER DEFAULT 0,
         random_day INTEGER DEFAULT 0
       );
@@ -350,6 +349,10 @@ app.get('/', function(req, res) {
 app.post('/keychain-auth', async function(req, res) {
   const username = (req.body.username || '').trim().toLowerCase();
   if (!username) return res.json({ ok: false, error: 'No username' });
+  const allowedNames = await getAllowedNames();
+  if (!allowedNames.has(username) && !isAdmin(username)) {
+    return res.json({ ok: false, error: 'Your name is not on the guest list' });
+  }
   res.cookie('userToken', username, { httpOnly: true, sameSite: 'strict', maxAge: 12 * 60 * 60 * 1000 });
   res.json({ ok: true });
 });
@@ -766,15 +769,15 @@ app.post('/admin-auth', function(req, res) {
           '<td>' + (u.points || 0).toFixed(1) + '</td>' +
           '<td>' + checkedIn + '</td>' +
           '<td>' +
-            '<form method="POST" action="' + ADMIN_URL + '/reset-checkin' + a + '" style="display:inline"><input type="hidden" name="key" value="' + escape(u.hive_name) + '"/><button type="submit" class="btn btn-gold btn-sm">Reset CI</button></form> ' +
-            '<form method="POST" action="' + ADMIN_URL + '/delete-user' + a + '" style="display:inline"><input type="hidden" name="key" value="' + escape(u.hive_name) + '"/><button type="submit" class="btn btn-red btn-sm">Delete</button></form>' +
+            '<form method="POST" action="' + ADMIN_URL + '/reset-checkin' + a + '" style="display:inline"><input type="hidden" name="_csrf" value="' + csrf + '"/><input type="hidden" name="key" value="' + escape(u.hive_name) + '"/><button type="submit" class="btn btn-gold btn-sm">Reset CI</button></form> ' +
+            '<form method="POST" action="' + ADMIN_URL + '/delete-user' + a + '" style="display:inline"><input type="hidden" name="_csrf" value="' + csrf + '"/><input type="hidden" name="key" value="' + escape(u.hive_name) + '"/><button type="submit" class="btn btn-red btn-sm">Delete</button></form>' +
           '</td>' +
         '</tr>';
       }).join('');
 
     let nameTags = '';
     allowedNames.forEach(function(n) {
-      nameTags += '<span class="tag">' + escape(n) + ' <a href="' + ADMIN_URL + '/remove-name?name=' + encodeURIComponent(n) + '&admin=' + token + '" style="color:#f87171;text-decoration:none;margin-left:4px">x</a></span>';
+     nameTags += '<span class="tag">' + escape(n) + ' <form method="POST" action="' + ADMIN_URL + '/remove-name" style="display:inline"><input type="hidden" name="_csrf" value="' + csrf + '"/><input type="hidden" name="name" value="' + escape(n) + '"/><button type="submit" style="background:none;border:none;color:#f87171;cursor:pointer;padding:0;margin-left:4px;font-size:13px">x</button></form></span>';
     });
 
     let pollRows = allPolls.length === 0 ?
@@ -882,9 +885,10 @@ app.post(ADMIN_URL + '/add-name', async function(req, res) {
   res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Added: ' + name));
 });
 
-app.get(ADMIN_URL + '/remove-name', async function(req, res) {
+app.post(ADMIN_URL + '/remove-name', async function(req, res) {
   const token = checkAdminToken(req, res); if (!token) return;
-  const name = (req.query.name || '').trim().toLowerCase();
+  if (!validateCsrf(req.body._csrf)) return res.redirect(ADMIN_URL + '/panel?err=1&msg=' + encodeURIComponent('Invalid request'));
+  const name = (req.body.name || '').trim().toLowerCase();
   await removeAllowedName(name);
   res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Removed: ' + name));
 });
@@ -897,6 +901,7 @@ app.post(ADMIN_URL + '/sync-hive', async function(req, res) {
 
 app.post(ADMIN_URL + '/reset-checkin', async function(req, res) {
   const token = checkAdminToken(req, res); if (!token) return;
+  if (!validateCsrf(req.body._csrf)) return res.redirect(ADMIN_URL + '/panel?err=1&msg=' + encodeURIComponent('Invalid request'));
   const name = req.body.key;
   const user = await getUser(name);
   if (!user) return res.redirect(ADMIN_URL + '/panel?admin=' + token + '&err=1&msg=' + encodeURIComponent('User not found'));
