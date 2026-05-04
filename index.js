@@ -10,7 +10,7 @@ const { startHiveSync }        = require('./services/hive');
 const authRoutes    = require('./routes/auth');
 const checkinRoutes = require('./routes/checkin');
 const userRoutes    = require('./routes/user');
-const { router: pollRoutes } = require('./routes/polls');
+const pollRoutes = require('./routes/polls').router;
 const missionRoutes = require('./routes/missions');
 const adminRoutes   = require('./routes/admin');
 
