@@ -7,9 +7,34 @@ const { BASE_URL, ADMIN_URL, LEGAL_VERSION }               = require('../config'
 const { isAdmin, adminSessions, createAdminSession }      = require('../middleware/session');
 const { escape, page }                                    = require('../views/layout');
 
+router.get('/consent', function(req, res) {
+  const next = req.query.next || '/';
+  res.send(page('RODO / GDPR',
+    '<h1>Krolestwo</h1>' +
+    '<h2>Zgoda / Consent</h2>' +
+    '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;text-align:left;margin-bottom:16px">' +
+      '<p style="font-size:14px;color:#fff;margin-bottom:8px"><strong>PL:</strong> Zgadzam sie na przetwarzanie moich danych osobowych (nazwa Hive, historia aktywnosci) przez Krolestwo wylacznie w celach spolecznosciowych, zgodnie z RODO. Dane nie sa udostepniane osobom trzecim.</p>' +
+      '<p style="font-size:13px;color:#aaa;margin-bottom:0"><strong>EN:</strong> I agree to the processing of my personal data (Hive username, activity history) by Krolestwo for community purposes only, in accordance with GDPR. Data is not shared with third parties.</p>' +
+    '</div>' +
+    '<label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:13px;color:#aaa;margin-bottom:16px;text-align:left">' +
+      '<input type="checkbox" id="consent-check" style="margin-top:3px;width:auto;flex-shrink:0"/>' +
+      '<span>Rozumiem i zgadzam sie / I understand and agree</span>' +
+    '</label>' +
+    '<button class="btn btn-gold" onclick="accept()">Continue</button>' +
+    '<script>' +
+    'function accept(){' +
+      'if(!document.getElementById("consent-check").checked)return alert("Please tick the box to continue.");' +
+      'document.cookie="consent=1;path=/;max-age=31536000";' +
+      'window.location.href="' + '"+decodeURIComponent("' + encodeURIComponent(next) + '");' +
+    '}' +
+    '</script>'
+  ));
+});
+
 router.get('/', function(req, res) {
   const name = req.cookies && req.cookies.userToken;
   if (name) return res.redirect('/home');
+  if (!req.cookies || !req.cookies.consent) return res.redirect('/consent?next=' + encodeURIComponent('/'));
   res.send(page('QR Cafe',
     '<h1>QR Cafe</h1>' +
     '<h2>Witamy w Krolestwie!</h2>' +
@@ -40,11 +65,7 @@ router.get('/', function(req, res) {
       'document.getElementById("open-keychain").insertAdjacentElement("afterend",btn);' +
     '}' +
     '</script>' +
-    '<div id="consent-box" style="display:block;margin-top:16px;background:rgba(255,255,255,0.05);border-radius:10px;padding:12px;text-align:left">' +
-    '<label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:13px;color:#aaa">' +
-    '<input type="checkbox" id="consent-check" style="margin-top:3px;width:auto;flex-shrink:0"/>' +
-'<span>I agree that my participation data (username and activity) is stored for community engagement purposes only and will never be shared commercially.</span>' +    '</label>' +
-    '</div>' +
+  
     '<a class="link" href="/leaderboard">View Leaderboard</a>' +
     '<a class="link" href="/polls">View Polls</a>'
   ));
@@ -58,8 +79,8 @@ router.post('/keychain-auth', async function(req, res) {
   if (!names.has(username) && !isAdmin(username)) {
     return res.json({ ok: false, error: 'Your name is not on the guest list' });
   }
-  const { pool } = require('../db/pool');
-  await pool.query('UPDATE users SET legal_version=$1 WHERE hive_name=$2', [LEGAL_VERSION, username]);
+const { pool } = require('../db/pool');
+  await pool.query('UPDATE users SET legal_version=$1 WHERE hive_name=$2', [LEGAL_VERSION, username]).catch(function(){});
   res.cookie('userToken', username, { httpOnly: true, sameSite: 'strict', maxAge: 12 * 60 * 60 * 1000 });
   res.json({ ok: true });
 });
