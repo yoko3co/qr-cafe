@@ -280,7 +280,7 @@ function page(title, body, wide) {
 function navBar(userKey) {
   return '<div class="nav">' +
     '<a href="/home?user=' + encodeURIComponent(userKey) + '" class="btn btn-gray">Home</a>' +
-    '<a href="/leaderboard" class="btn btn-gray">Leaderboard</a>' +
+    '<a href="/leaderboard" class="btn btn-gray">Leaderboard</a>' +'<a href="/leaderboard?user=' + encodeURIComponent(userKey) + '" class="btn btn-gray">Leaderboard</a>' +
     '<a href="/polls?user=' + encodeURIComponent(userKey) + '" class="btn btn-gray">Voting</a>' +
     '<a href="/lottery?user=' + encodeURIComponent(userKey) + '" class="btn btn-gold">Lottery</a>' +
   '</div>';
@@ -294,9 +294,7 @@ app.get('/', function(req, res) {
     '<h2>Witamy w Krolestwie!</h2>' +
     '<div class="info">Chcesz zalozyc konto?<br><strong>Zapytaj w Krolestwie!</strong></div>' +
     '<hr>' +
-    '<p style="font-size:13px;color:#666">Login with your Hive account</p>' +
     '<p style="font-size:11px;color:#555;margin-bottom:12px">By logging in you agree that your participation data is stored solely for community engagement and will never be shared or used commercially.</p>' +
-    '<input type="text" id="hive-username" placeholder="Your Hive username"/>' +
     '<a href="hive://browser?url=' + encodeURIComponent(BASE_URL + '/') + '" class="btn btn-blue" id="open-keychain">Open in Keychain App</a>' +
     '<script>' +
     'if(typeof window.hive_keychain !== "undefined"){' +
@@ -305,9 +303,7 @@ app.get('/', function(req, res) {
       'btn.className="btn btn-blue";' +
       'btn.innerText="Login with Hive Keychain";' +
       'btn.onclick=function(){' +
-        'var u=document.getElementById("hive-username").value.trim().toLowerCase();' +
-        'if(!u) return alert("Enter your Hive username");' +
-        'window.hive_keychain.requestSignBuffer(u,"qrcafe-login","Posting",function(res){' +
+        'window.hive_keychain.requestSignBuffer(null,"qrcafe-login","Posting",function(res){' +
           'if(res.success){window.location.href="/home?user=HIVE:"+encodeURIComponent(res.data.username);}' +
           'else{alert("Error: "+res.message);}' +
         '});' +
@@ -509,7 +505,7 @@ app.get('/leaderboard', async function(req, res) {
       '<h1>Leaderboard</h1>' +
       tabs +
       '<table><tr><th>#</th><th>Player</th><th>' + safeType.charAt(0).toUpperCase() + safeType.slice(1) + '</th></tr>' + rows + '</table>' +
-     '<a class="link" href="javascript:history.back()">Back</a>'
+     '<a class="link" href="' + (req.query.user ? '/home?user=' + encodeURIComponent(req.query.user) : '/') + '">Back</a>'
     ));
   } catch (e) {
     res.send(page('Error', '<h1>Error</h1><p>' + escape(e.message) + '</p>'));
