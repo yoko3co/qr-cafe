@@ -3,8 +3,7 @@ const QRCode = require('qrcode');
 const crypto = require('crypto');
 const { Pool } = require('pg');
 const rateLimit = require('express-rate-limit');
-const cookieParser = require('cookie-parser');
-app.use(cookieParser());
+
 
 const limitDefault = rateLimit({ windowMs: 60 * 1000, max: 10, message: 'Too many requests, slow down.' });
 const limitLottery = rateLimit({ windowMs: 60 * 1000, max: 5, message: 'Too many lottery attempts.' });
@@ -19,7 +18,8 @@ const ADMIN_URL = '/hallmann';
 const VERSION = 'Krolestwo.3.0';
 const HIVE_ACCOUNT = 'test3333';
 const ADMIN_ACCOUNTS = ['hallmann', 'hivedocu', 'test3333'];
-
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(function(req, res, next) {
