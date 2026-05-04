@@ -3,8 +3,7 @@
 const express = require('express');
 const router  = express.Router();
 
-const { BASE_URL, ADMIN_URL }                              = require('../config');
-const { getAllowedNames }                                  = require('../db/pool');
+const { BASE_URL, ADMIN_URL, LEGAL_VERSION }               = require('../config');const { getAllowedNames }                                  = require('../db/pool');
 const { isAdmin, adminSessions, createAdminSession }      = require('../middleware/session');
 const { escape, page }                                    = require('../views/layout');
 
@@ -24,18 +23,28 @@ router.get('/', function(req, res) {
       'var btn=document.createElement("button");' +
       'btn.className="btn btn-blue";' +
       'btn.innerText="Login with Hive Keychain";' +
+      'document.getElementById("consent-box").style.display="block";' +
+    'document.getElementById("consent-box").style.display="block";' +
       'btn.onclick=function(){' +
+        'if(!document.getElementById("consent-check").checked)return alert("Please agree to the terms to continue.");' +
         'window.hive_keychain.requestSignBuffer(null,"qrcafe-login","Posting",function(r){' +
           'if(r.success){' +
-            'fetch("/keychain-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:r.data.username})})' +
+            'fetch("/keychain-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:r.data.username,consent:true})})' +
             '.then(function(x){return x.json();})' +
             '.then(function(d){if(d.ok){window.location.href="/home";}else{alert(d.error||"Error");}});' +
           '}else{alert("Error: "+r.message);}' +
         '});' +
       '};' +
+        '});' +
+      '};' +
       'document.getElementById("open-keychain").insertAdjacentElement("afterend",btn);' +
     '}' +
     '</script>' +
+    '<div id="consent-box" style="display:none;margin-top:16px;background:rgba(255,255,255,0.05);border-radius:10px;padding:12px;text-align:left">' +
+    '<label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:13px;color:#aaa">' +
+    '<input type="checkbox" id="consent-check" style="margin-top:3px;width:auto;flex-shrink:0"/>' +
+'<span>I agree that my participation data (username and activity) is stored for community engagement purposes only and will never be shared commercially.</span>' +    '</label>' +
+    '</div>' +
     '<a class="link" href="/leaderboard">View Leaderboard</a>' +
     '<a class="link" href="/polls">View Polls</a>'
   ));
@@ -44,10 +53,13 @@ router.get('/', function(req, res) {
 router.post('/keychain-auth', async function(req, res) {
   const username = (req.body.username || '').trim().toLowerCase();
   if (!username) return res.json({ ok: false, error: 'No username' });
+  if (!req.body.consent) return res.json({ ok: false, error: 'Please agree to the terms to continue' });
   const names = await getAllowedNames();
   if (!names.has(username) && !isAdmin(username)) {
     return res.json({ ok: false, error: 'Your name is not on the guest list' });
   }
+  const { pool } = require('../db/pool');
+  await pool.query('UPDATE users SET legal_version=$1 WHERE hive_name=$2', [LEGAL_VERSION, username]);
   res.cookie('userToken', username, { httpOnly: true, sameSite: 'strict', maxAge: 12 * 60 * 60 * 1000 });
   res.json({ ok: true });
 });
