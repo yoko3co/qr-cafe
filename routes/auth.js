@@ -43,13 +43,4 @@ function requireUser(req, res) {
   return name;
 }
 
-module.exports = {
-  generateCsrf,
-  validateCsrf,
-  adminSessions,
-  isAdmin,
-  getUserFromCookie,
-  checkAdminToken,
-  requireUser,
-};
-module.exports = router;
+module.exports = router;module.exports = router;
