@@ -3,16 +3,9 @@
 const express      = require('express');
 const cookieParser = require('cookie-parser');
 
-const { PORT, ADMIN_URL }      = require('./config');
-const { initDB }               = require('./db/pool');
-const { startHiveSync }        = require('./services/hive');
-
-const authRoutes    = require('./routes/auth');
-const checkinRoutes = require('./routes/checkin');
-const userRoutes    = require('./routes/user');
-const pollRoutes = require('./routes/polls').router;
-const missionRoutes = require('./routes/missions');
-const adminRoutes   = require('./routes/admin');
+const { PORT, ADMIN_URL } = require('./config');
+const { initDB }          = require('./db/pool');
+const { startHiveSync }   = require('./services/hive');
 
 const app = express();
 
@@ -31,12 +24,12 @@ app.use(function(req, res, next) {
 
 // ==================== ROUTES ====================
 
-app.use('/',              authRoutes);
-app.use('/',              checkinRoutes);
-app.use('/',              userRoutes);
-app.use('/',              pollRoutes);
-app.use('/',              missionRoutes);
-app.use(ADMIN_URL,        adminRoutes);
+app.use('/',       require('./routes/auth'));
+app.use('/',       require('./routes/checkin'));
+app.use('/',       require('./routes/user'));
+app.use('/',       require('./routes/polls').router);
+app.use('/',       require('./routes/missions'));
+app.use(ADMIN_URL, require('./routes/admin'));
 
 // ==================== START ====================
 
