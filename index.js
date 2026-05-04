@@ -20,6 +20,25 @@ const HIVE_ACCOUNT = 'test3333';
 const ADMIN_ACCOUNTS = ['hallmann', 'hivedocu', 'test3333'];
 const cookieParser = require('cookie-parser');
 app.use(cookieParser());
+const Tokens = require('csrf');
+const csrfTokens = new Tokens();
+const CSRF_SECRET = process.env.CSRF_SECRET || crypto.randomUUID();
+
+function generateCsrf() {
+  return csrfTokens.create(CSRF_SECRET);
+}
+
+function validateCsrf(token) {
+  return csrfTokens.verify(CSRF_SECRET, token || '');
+}
+
+function sanitize(str, maxLen) {
+  return String(str || '').trim().slice(0, maxLen || 200);
+}
+
+function isValidName(name) {
+  return /^[a-zA-Z0-9._-]+$/.test(name) && name.length <= 30;
+}
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(function(req, res, next) {
@@ -731,6 +750,7 @@ app.post('/admin-auth', function(req, res) {
   const msg = req.query.msg ? decodeURIComponent(req.query.msg) : '';
   const isError = req.query.err === '1';
   const a = '';
+  const csrf = generateCsrf();
   try {
     const allUsers = await getAllUsers();
     const allPolls = await getAllPolls();
@@ -815,7 +835,8 @@ app.post('/admin-auth', function(req, res) {
       '<p style="text-align:left;font-size:13px;color:#666">Synced from Hive: ' + HIVE_ACCOUNT + ' every 5 min</p>' +
       '<details style="text-align:left;margin-bottom:12px"><summary style="cursor:pointer;color:#60a5fa;font-size:14px">Show names (' + allowedNames.size + ')</summary><div style="margin-top:8px">' + (nameTags || '<p style="color:#555">No names</p>') + '</div></details>' +
       '<form method="POST" action="' + ADMIN_URL + '/add-name' + a + '" style="display:flex;gap:8px">' +
-        '<input type="text" name="name" placeholder="Add a name..." required style="flex:1;margin:0"/>' +
+      '<input type="hidden" name="_csrf" value="' + csrf + '"/>' +
+     '<input type="text" name="name" placeholder="Add a name..." required style="flex:1;margin:0"/>' +
         '<button type="submit" class="btn btn-green" style="width:auto;padding:8px 16px;margin:0">Add</button>' +
       '</form>' +
       '<form method="POST" action="' + ADMIN_URL + '/sync-hive' + a + '" style="margin-top:8px">' +
@@ -826,7 +847,8 @@ app.post('/admin-auth', function(req, res) {
       '<table><tr><th>Question</th><th>Status</th><th>Votes</th><th>Actions</th></tr>' + pollRows + '</table>' +
       (allPolls.length < 5 ?
         '<form method="POST" action="' + ADMIN_URL + '/add-poll' + a + '" style="margin-top:16px">' +
-          '<input type="text" name="question" placeholder="Poll question..." required style="margin-bottom:8px"/>' +
+  '<input type="hidden" name="_csrf" value="' + csrf + '"/>' +
+  '<input type="text" name="question" placeholder="Poll question..." required style="margin-bottom:8px"/>' +
           '<input type="text" name="opt0" placeholder="Option 1" required style="margin-bottom:6px"/>' +
           '<input type="text" name="opt1" placeholder="Option 2" required style="margin-bottom:6px"/>' +
           '<input type="text" name="opt2" placeholder="Option 3 (optional)" style="margin-bottom:6px"/>' +
@@ -853,8 +875,9 @@ app.post('/admin-auth', function(req, res) {
 
 app.post(ADMIN_URL + '/add-name', async function(req, res) {
   const token = checkAdminToken(req, res); if (!token) return;
-  const name = (req.body.name || '').trim().toLowerCase();
-  if (!name) return res.redirect(ADMIN_URL + '/panel?admin=' + token + '&err=1&msg=' + encodeURIComponent('Name cannot be empty'));
+  if (!validateCsrf(req.body._csrf)) return res.redirect(ADMIN_URL + '/panel?err=1&msg=' + encodeURIComponent('Invalid request'));
+  const name = sanitize(req.body.name, 30).toLowerCase();
+  if (!name || !isValidName(name)) return res.redirect(ADMIN_URL + '/panel?err=1&msg=' + encodeURIComponent('Invalid name'));
   await addAllowedName(name);
   res.redirect(ADMIN_URL + '/panel?admin=' + token + '&msg=' + encodeURIComponent('Added: ' + name));
 });
@@ -891,11 +914,12 @@ app.post(ADMIN_URL + '/delete-user', async function(req, res) {
 
 app.post(ADMIN_URL + '/add-poll', async function(req, res) {
   const token = checkAdminToken(req, res); if (!token) return;
+  if (!validateCsrf(req.body._csrf)) return res.redirect(ADMIN_URL + '/panel?err=1&msg=' + encodeURIComponent('Invalid request'));
   const count = await pool.query('SELECT COUNT(*) FROM polls');
-  if (parseInt(count.rows[0].count) >= 5) return res.redirect(ADMIN_URL + '/panel?admin=' + token + '&err=1&msg=' + encodeURIComponent('Max 5 polls reached'));
-  const question = (req.body.question || '').trim();
+  if (parseInt(count.rows[0].count) >= 5) return res.redirect(ADMIN_URL + '/panel?err=1&msg=' + encodeURIComponent('Max 5 polls reached'));
+  const question = sanitize(req.body.question, 200);
   const options = [req.body.opt0, req.body.opt1, req.body.opt2, req.body.opt3]
-    .map(function(o) { return (o || '').trim(); })
+    .map(function(o) { return sanitize(o, 100); })
     .filter(function(o) { return o.length > 0; });
   if (!question || options.length < 2) return res.redirect(ADMIN_URL + '/panel?admin=' + token + '&err=1&msg=' + encodeURIComponent('Need question and 2+ options'));
   const pid = crypto.randomUUID();
