@@ -5,7 +5,7 @@ const { Pool } = require('pg');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DAY = 24 * 60 * 60 * 1000;
+const DAY = 12 * 60 * 60 * 1000;
 const SESSION_TTL = 60 * 60 * 1000;
 const BASE_URL = process.env.BASE_URL || 'https://qr-cafe-shh2.onrender.com';
 const ADMIN_URL = '/hallmann';
@@ -27,10 +27,12 @@ const pool = new Pool({
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
+events today  
+
 async function initDB() {
   try {
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
+     CREATE TABLE IF NOT EXISTS users (
         hive_name TEXT PRIMARY KEY,
         points REAL DEFAULT 0,
         book INTEGER DEFAULT 0,
@@ -38,7 +40,9 @@ async function initDB() {
         volunteers INTEGER DEFAULT 0,
         film INTEGER DEFAULT 0,
         last_visit BIGINT DEFAULT 0,
+        events_today JSONB DEFAULT '{}',
         voted JSONB DEFAULT '{}',
+       events_today JSONB DEFAULT '{}',
         random_presses INTEGER DEFAULT 0,
         random_day INTEGER DEFAULT 0
       );
@@ -71,6 +75,7 @@ await pool.query(`
     for (const name of allowedNames) {
       await pool.query('INSERT INTO allowed_names (name) VALUES ($1) ON CONFLICT DO NOTHING', [name]);
     }
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS events_today JSONB DEFAULT \'{}\'');
     console.log('Database ready, names seeded:', allowedNames.size);
   } catch (e) {
     console.log('DB init error:', e.message, e.stack);
@@ -88,13 +93,13 @@ async function getUser(hiveName) {
 
 async function upsertUser(hiveName, data) {
   await pool.query(`
-    INSERT INTO users (hive_name, points, book, games, volunteers, film, last_visit, voted, random_presses, random_day)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+    INSERT INTO users (hive_name, points, book, games, volunteers, film, last_visit, events_today, voted, random_presses, random_day)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
     ON CONFLICT (hive_name) DO UPDATE SET
       points=$2, book=$3, games=$4, volunteers=$5, film=$6,
-      last_visit=$7, voted=$8, random_presses=$9, random_day=$10
+      last_visit=$7, events_today=$8, voted=$9, random_presses=$10, random_day=$11
   `, [hiveName, data.points||0, data.book||0, data.games||0, data.volunteers||0, data.film||0,
-      data.last_visit||0, JSON.stringify(data.voted||{}), data.random_presses||0, data.random_day||0]);
+      data.last_visit||0, JSON.stringify(data.events_today||{}), JSON.stringify(data.voted||{}), data.random_presses||0, data.random_day||0]);
 }
 
 async function getAllUsers() {
@@ -421,22 +426,51 @@ app.get('/hive-checkin', async function(req, res) {
       await upsertUser(name, { points: 0, book: 0, games: 0, volunteers: 0, film: 0, last_visit: 0, voted: {}, random_presses: 0, random_day: 0 });
       user = await getUser(name);
     }
-    if (user.last_visit && Date.now() - user.last_visit < DAY) {
-      const next = new Date(user.last_visit + DAY).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-      return res.send(page('Already Checked In',
-        '<h1>Already checked in!</h1>' +
-        '<p>Hey <strong>' + escape(user.hive_name) + '</strong>, come back after <strong>' + next + '</strong>.</p>' +
-        '<div class="badge">' + (user.points || 0).toFixed(1) + ' points</div>' +
+    const withinWindow = user.last_visit && Date.now() - user.last_visit < DAY;
+    const eventsToday = withinWindow ? (user.events_today || {}) : {};
+    const eventType = s.event || 'none';
+
+    if (withinWindow) {
+      if (eventType === 'none') {
+        const next = new Date(user.last_visit + DAY).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        return res.send(page('Already Checked In',
+          '<h1>Already checked in!</h1>' +
+          '<p>Hey <strong>' + escape(user.hive_name) + '</strong>, come back after <strong>' + next + '</strong>.</p>' +
+          '<div class="badge">' + (user.points || 0).toFixed(1) + ' points</div>' +
+          navBar('HIVE:' + name)
+        ));
+      }
+      if (eventsToday[eventType]) {
+        return res.send(page('Already earned!',
+          '<h1>Already earned!</h1>' +
+          '<p>You already got your <strong>' + escape(eventType) + '</strong> coin today.</p>' +
+          '<div class="badge">' + (user.points || 0).toFixed(1) + ' points</div>' +
+          navBar('HIVE:' + name)
+        ));
+      }
+      eventsToday[eventType] = true;
+      if (eventType === 'book') user.book = (user.book || 0) + 1;
+      if (eventType === 'games') user.games = (user.games || 0) + 1;
+      if (eventType === 'volunteers') user.volunteers = (user.volunteers || 0) + 1;
+      if (eventType === 'film') user.film = (user.film || 0) + 1;
+      user.events_today = eventsToday;
+      await upsertUser(name, user);
+      return res.send(page('Event coin earned!',
+        '<h1>Event coin earned!</h1>' +
+        '<h2>' + escape(user.hive_name) + '</h2>' +
+        '<p>You earned a <strong>' + escape(eventType.charAt(0).toUpperCase() + eventType.slice(1)) + '</strong> coin!</p>' +
+        '<div class="badge">+1 ' + escape(eventType) + ' coin - Total points: ' + (user.points || 0).toFixed(1) + '</div>' +
         navBar('HIVE:' + name)
       ));
     }
-    const eventType = s.event || 'none';
-    user.points = (user.points || 0) + 1;
-    if (eventType === 'book') user.book = (user.book || 0) + 1;
-    if (eventType === 'games') user.games = (user.games || 0) + 1;
-    if (eventType === 'volunteers') user.volunteers = (user.volunteers || 0) + 1;
-    if (eventType === 'film') user.film = (user.film || 0) + 1;
+
     user.last_visit = Date.now();
+    user.points = (user.points || 0) + 1;
+    user.events_today = {};
+    if (eventType === 'book') { user.book = (user.book || 0) + 1; user.events_today.book = true; }
+    if (eventType === 'games') { user.games = (user.games || 0) + 1; user.events_today.games = true; }
+    if (eventType === 'volunteers') { user.volunteers = (user.volunteers || 0) + 1; user.events_today.volunteers = true; }
+    if (eventType === 'film') { user.film = (user.film || 0) + 1; user.events_today.film = true; }
     await upsertUser(name, user);
     const coinMsg = eventType !== 'none' ? ' +1 ' + eventType.charAt(0).toUpperCase() + eventType.slice(1) + ' coin' : '';
     res.send(page('Welcome!',
