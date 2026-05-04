@@ -598,7 +598,7 @@ app.get('/polls', async function(req, res) {
   }
 });
 
-aapp.get('/poll-vote', limitVote, async function(req, res) {
+app.get('/poll-vote', limitVote, async function(req, res) {
   const pid = req.query.pid;
   const opt = parseInt(req.query.opt);
   const name = getUserFromCookie(req);
