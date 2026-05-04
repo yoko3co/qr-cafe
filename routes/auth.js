@@ -40,7 +40,7 @@ router.get('/', function(req, res) {
       'document.getElementById("open-keychain").insertAdjacentElement("afterend",btn);' +
     '}' +
     '</script>' +
-    '<div id="consent-box" style="display:none;margin-top:16px;background:rgba(255,255,255,0.05);border-radius:10px;padding:12px;text-align:left">' +
+    '<div id="consent-box" style="display:block;margin-top:16px;background:rgba(255,255,255,0.05);border-radius:10px;padding:12px;text-align:left">' +
     '<label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:13px;color:#aaa">' +
     '<input type="checkbox" id="consent-check" style="margin-top:3px;width:auto;flex-shrink:0"/>' +
 '<span>I agree that my participation data (username and activity) is stored for community engagement purposes only and will never be shared commercially.</span>' +    '</label>' +
