@@ -27,8 +27,6 @@ const pool = new Pool({
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-events today  
-
 async function initDB() {
   try {
     await pool.query(`
