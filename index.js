@@ -278,7 +278,8 @@ function page(title, body, wide) {
 function navBar(userKey) {
   return '<div class="nav">' +
     '<a href="/home?user=' + encodeURIComponent(userKey) + '" class="btn btn-gray">Home</a>' +
-    '<a href="/leaderboard" class="btn btn-gray">Leaderboard</a>' +'<a href="/leaderboard?user=' + encodeURIComponent(userKey) + '" class="btn btn-gray">Leaderboard</a>' +
+    '<a href="/leaderboard?user=' + encodeURIComponent(userKey) + '" class="btn btn-gray">Leaderboard</a>' +
+    '<a href="/missions" class="btn btn-gray" style="opacity:0.5;pointer-events:none">Missions</a>' +
     '<a href="/polls?user=' + encodeURIComponent(userKey) + '" class="btn btn-gray">Voting</a>' +
     '<a href="/lottery?user=' + encodeURIComponent(userKey) + '" class="btn btn-gold">Lottery</a>' +
   '</div>';
