@@ -27,7 +27,7 @@ app.use(function(req, res, next) {
 app.use('/',       require('./routes/auth'));
 app.use('/',       require('./routes/checkin'));
 app.use('/',       require('./routes/user'));
-app.use('/',       require('./routes/polls').router);
+app.use('/',       require('./routes/polls'));
 app.use('/',       require('./routes/missions'));
 app.use(ADMIN_URL, require('./routes/admin'));
 
