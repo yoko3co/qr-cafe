@@ -2,6 +2,11 @@ const express = require('express');
 const QRCode = require('qrcode');
 const crypto = require('crypto');
 const { Pool } = require('pg');
+const rateLimit = require('express-rate-limit');
+
+const limitDefault = rateLimit({ windowMs: 60 * 1000, max: 10, message: 'Too many requests, slow down.' });
+const limitLottery = rateLimit({ windowMs: 60 * 1000, max: 5, message: 'Too many lottery attempts.' });
+const limitVote = rateLimit({ windowMs: 60 * 1000, max: 5, message: 'Too many vote attempts.' });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -406,7 +411,7 @@ app.get('/check', function(req, res) {
   ));
 });
 
-app.get('/hive-checkin', async function(req, res) {
+app.get('/hive-checkin', limitDefault, async function(req, res) {
   const session = req.query.session;
   const name = (req.query.user || '').trim().toLowerCase();
   const s = sessions.get(session);
@@ -581,7 +586,7 @@ app.get('/polls', async function(req, res) {
   }
 });
 
-app.get('/poll-vote', async function(req, res) {
+app.get('/poll-vote', limitVote, async function(req, res) {
   const pid = req.query.pid;
   const opt = parseInt(req.query.opt);
   const key = req.query.user;
@@ -644,7 +649,7 @@ app.get('/lottery', async function(req, res) {
   }
 });
 
-app.get('/lottery-spin', async function(req, res) {
+app.get('/lottery-spin', limitLottery, async function(req, res) {
   const key = req.query.user;
   const name = key ? key.replace('HIVE:', '') : null;
   if (!name) return res.json({ ok: false, msg: 'Not logged in' });
