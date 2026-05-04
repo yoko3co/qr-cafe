@@ -226,7 +226,9 @@ function escape(str) {
 }
 
 function isAdmin(name) { return ADMIN_ACCOUNTS.includes((name || '').trim().toLowerCase()); }
-
+function getUserFromCookie(req) {
+  return req.cookies && req.cookies.userToken ? req.cookies.userToken : null;
+}
 function checkAdminToken(req, res) {
   const token = req.cookies && req.cookies.adminToken;
   if (!token || !adminSessions.has(token)) { res.redirect(ADMIN_URL); return false; }
@@ -282,13 +284,13 @@ function page(title, body, wide) {
     '</div></body></html>';
 }
 
-function navBar(userKey) {
+function navBar() {
   return '<div class="nav">' +
-    '<a href="/home?user=' + encodeURIComponent(userKey) + '" class="btn btn-gray">Home</a>' +
-    '<a href="/leaderboard?user=' + encodeURIComponent(userKey) + '" class="btn btn-gray">Leaderboard</a>' +
+    '<a href="/home" class="btn btn-gray">Home</a>' +
+    '<a href="/leaderboard" class="btn btn-gray">Leaders</a>' +
     '<a href="/missions" class="btn btn-gray" style="opacity:0.5;pointer-events:none">Missions</a>' +
-    '<a href="/polls?user=' + encodeURIComponent(userKey) + '" class="btn btn-gray">Voting</a>' +
-    '<a href="/lottery?user=' + encodeURIComponent(userKey) + '" class="btn btn-gold">Lottery</a>' +
+    '<a href="/polls" class="btn btn-gray">Voting</a>' +
+    '<a href="/lottery" class="btn btn-gold">Lottery</a>' +
   '</div>';
 }
 
@@ -309,10 +311,13 @@ app.get('/', function(req, res) {
       'btn.className="btn btn-blue";' +
       'btn.innerText="Login with Hive Keychain";' +
       'btn.onclick=function(){' +
-        'window.hive_keychain.requestSignBuffer(null,"qrcafe-login","Posting",function(res){' +
-          'if(res.success){window.location.href="/home?user=HIVE:"+encodeURIComponent(res.data.username);}' +
-          'else{alert("Error: "+res.message);}' +
-        '});' +
+       'window.hive_keychain.requestSignBuffer(null,"qrcafe-login","Posting",function(res){' +
+  'if(res.success){' +
+    'fetch("/keychain-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:res.data.username})})' +
+    '.then(function(r){return r.json();})' +
+    '.then(function(d){if(d.ok){window.location.href="/home";}else{alert("Error");}});' +
+  '} else{alert("Error: "+res.message);}' +
+'});' +
       '};' +
       'document.getElementById("open-keychain").insertAdjacentElement("afterend",btn);' +
     '}' +
@@ -323,11 +328,16 @@ app.get('/', function(req, res) {
 });
 
 // ==================== HOME (LOGGED IN) ====================
-
+app.post('/keychain-auth', async function(req, res) {
+  const username = (req.body.username || '').trim().toLowerCase();
+  if (!username) return res.json({ ok: false, error: 'No username' });
+  res.cookie('userToken', username, { httpOnly: true, sameSite: 'strict', maxAge: 12 * 60 * 60 * 1000 });
+  res.json({ ok: true });
+});
 app.get('/home', async function(req, res) {
-  const key = req.query.user;
-  const name = key ? key.replace('HIVE:', '') : null;
+  const name = getUserFromCookie(req);
   if (!name) return res.redirect('/');
+  const key = 'HIVE:' + name;
   try {
     const allowedNames = await getAllowedNames();
     if (!allowedNames.has(name.toLowerCase()) && !isAdmin(name)) {
@@ -343,7 +353,7 @@ app.get('/home', async function(req, res) {
       '<h2>Hey, <strong>' + escape(user.hive_name) + '</strong>!</h2>' +
       '<div class="badge">' + (user.points || 0).toFixed(1) + ' points</div>' +
       '<p style="font-size:13px;color:#666">Book: ' + (user.book || 0) + ' | Games: ' + (user.games || 0) + ' | Volunteers: ' + (user.volunteers || 0) + ' | Film: ' + (user.film || 0) + '</p>' +
-      navBar(key)
+      navBar('HIVE:' + name)
     ));
   } catch (e) {
     res.send(page('Error', '<h1>Error</h1><p>' + escape(e.message) + '</p>'));
@@ -474,6 +484,7 @@ app.get('/hive-checkin', limitDefault, async function(req, res) {
     if (eventType === 'volunteers') { user.volunteers = (user.volunteers || 0) + 1; user.events_today.volunteers = true; }
     if (eventType === 'film') { user.film = (user.film || 0) + 1; user.events_today.film = true; }
     await upsertUser(name, user);
+    res.cookie('userToken', name, { httpOnly: true, sameSite: 'strict', maxAge: 12 * 60 * 60 * 1000 });
     const coinMsg = eventType !== 'none' ? ' +1 ' + eventType.charAt(0).toUpperCase() + eventType.slice(1) + ' coin' : '';
     res.send(page('Welcome!',
       '<h1>Witamy w Krolestwie!</h1>' +
@@ -511,8 +522,7 @@ app.get('/leaderboard', async function(req, res) {
       '<h1>Leaderboard</h1>' +
       tabs +
       '<table><tr><th>#</th><th>Player</th><th>' + safeType.charAt(0).toUpperCase() + safeType.slice(1) + '</th></tr>' + rows + '</table>' +
-     '<a class="link" href="' + (req.query.user ? '/home?user=' + encodeURIComponent(req.query.user) : '/') + '">Back</a>'
-    ));
+'<a class="link" href="/home">Back</a>'    ));
   } catch (e) {
     res.send(page('Error', '<h1>Error</h1><p>' + escape(e.message) + '</p>'));
   }
@@ -521,8 +531,8 @@ app.get('/leaderboard', async function(req, res) {
 // ==================== POLLS ====================
 
 app.get('/polls', async function(req, res) {
-  const key = req.query.user;
-  const name = key && key !== 'guest' ? key.replace('HIVE:', '') : null;
+  const name = getUserFromCookie(req);
+  const key = name ? 'HIVE:' + name : null;
   try {
     let user = name ? await getUser(name) : null;
     const isGuest = !user;
@@ -572,8 +582,8 @@ app.get('/polls', async function(req, res) {
         'var user="' + escape(name || '') + '";' +
         'var json=JSON.stringify({app:"qr-cafe",action:"vote",poll:pid,choice:opt,optionText:optText});' +
         'window.hive_keychain.requestCustomJson(user,"qr-cafe-vote","Posting","[]",json,"QR Cafe Vote",function(res){' +
-          'if(res.success){window.location.href="/poll-vote?pid="+pid+"&opt="+opt+"&user=' + encodeURIComponent(key || '') + '";}' +
-          'else{alert("Error: "+res.message);}' +
+       'if(res.success){window.location.href="/poll-vote?pid="+pid+"&opt="+opt;}' +
+        'else{alert("Error: "+res.message);}' +
         '});' +
       '}' +
       '</script>' : '';
@@ -581,19 +591,19 @@ app.get('/polls', async function(req, res) {
       '<h1>Voting</h1>' +
       pollHtml +
       chainScript +
-      (isGuest ? '<a class="link" href="/">Login to vote</a>' : navBar(key))
+      (isGuest ? '<a class="link" href="/">Login to vote</a>' : navBar('HIVE:' + name))
     ));
   } catch (e) {
     res.send(page('Error', '<h1>Error</h1><p>' + escape(e.message) + '</p>'));
   }
 });
 
-app.get('/poll-vote', limitVote, async function(req, res) {
+aapp.get('/poll-vote', limitVote, async function(req, res) {
   const pid = req.query.pid;
   const opt = parseInt(req.query.opt);
-  const key = req.query.user;
-  const name = key ? key.replace('HIVE:', '') : null;
+  const name = getUserFromCookie(req);
   if (!name) return res.redirect('/');
+  const key = 'HIVE:' + name;
   try {
     const poll = await getPoll(pid);
     const user = await getUser(name);
@@ -615,9 +625,9 @@ app.get('/poll-vote', limitVote, async function(req, res) {
 // ==================== LOTTERY ====================
 
 app.get('/lottery', async function(req, res) {
-  const key = req.query.user;
-  const name = key ? key.replace('HIVE:', '') : null;
+  const name = getUserFromCookie(req);
   if (!name) return res.redirect('/');
+  const key = 'HIVE:' + name;
   try {
     const user = await getUser(name);
     if (!user) return res.redirect('/');
@@ -632,7 +642,7 @@ app.get('/lottery', async function(req, res) {
       (pressesLeft > 0 ?
         '<button class="btn btn-gold" id="spin-btn" onclick="spin()">Try your luck!</button>' :
         '<div class="info">Come back tomorrow for more presses!</div>') +
-      navBar(key) +
+      navBar('HIVE:' + name) +
       '<script>' +
       'function spin(){' +
         'document.getElementById("spin-btn").disabled=true;' +
@@ -652,9 +662,9 @@ app.get('/lottery', async function(req, res) {
 });
 
 app.get('/lottery-spin', limitLottery, async function(req, res) {
-  const key = req.query.user;
-  const name = key ? key.replace('HIVE:', '') : null;
+  const name = getUserFromCookie(req);
   if (!name) return res.json({ ok: false, msg: 'Not logged in' });
+  const key = 'HIVE:' + name;
   try {
     const user = await getUser(name);
     if (!user) return res.json({ ok: false, msg: 'User not found' });
