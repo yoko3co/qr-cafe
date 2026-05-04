@@ -3,6 +3,8 @@ const QRCode = require('qrcode');
 const crypto = require('crypto');
 const { Pool } = require('pg');
 const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
 
 const limitDefault = rateLimit({ windowMs: 60 * 1000, max: 10, message: 'Too many requests, slow down.' });
 const limitLottery = rateLimit({ windowMs: 60 * 1000, max: 5, message: 'Too many lottery attempts.' });
@@ -226,7 +228,7 @@ function escape(str) {
 function isAdmin(name) { return ADMIN_ACCOUNTS.includes((name || '').trim().toLowerCase()); }
 
 function checkAdminToken(req, res) {
-  const token = req.query.admin || (req.body && req.body.admin);
+  const token = req.cookies && req.cookies.adminToken;
   if (!token || !adminSessions.has(token)) { res.redirect(ADMIN_URL); return false; }
   return token;
 }
@@ -350,9 +352,9 @@ app.get('/home', async function(req, res) {
 
 // ==================== QR DISPLAY ====================
 
-app.get('/qr', async function(req, res) {
-  const token = req.query.admin;
-  if (!adminSessions.has(token)) return res.redirect(ADMIN_URL);
+ app.get('/qr', async function(req, res) {
+  const token = req.cookies && req.cookies.adminToken;
+  if (!token || !adminSessions.has(token)) return res.redirect(ADMIN_URL);
   const sid = crypto.randomUUID();
   const event = req.query.event || 'none';
   sessions.set(sid, { expiresAt: Date.now() + SESSION_TTL, event: event });
@@ -371,7 +373,7 @@ app.get('/qr', async function(req, res) {
     '<img src="' + qr + '" style="width:300px;height:300px;border-radius:16px"/>' +
     '<p style="color:#555;font-size:13px;margin-top:16px">Refreshes every minute</p>' +
     '<span class="version">' + VERSION + '</span>' +
-    '<a href="' + ADMIN_URL + '/panel?admin=' + token + '" class="back">back to panel</a>' +
+    '<a href="' + ADMIN_URL + '/panel" class="back">back to panel</a>' +
     '</body></html>');
 });
 
@@ -692,7 +694,7 @@ app.get(ADMIN_URL, function(req, res) {
           'fetch("/admin-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:res.data.username})})' +
           '.then(function(r){return r.json();})' +
           '.then(function(d){' +
-            'if(d.ok){window.location.href="' + ADMIN_URL + '/panel?admin="+d.token;}' +
+            'if(d.ok){window.location.href="' + ADMIN_URL + '/panel";}' +
             'else{alert(d.error||"Access denied");}' +
           '});' +
         '} else{alert("Keychain error: "+res.message);}' +
@@ -707,17 +709,18 @@ app.post('/admin-auth', function(req, res) {
   if (!isAdmin(username)) return res.json({ ok: false, error: 'Access denied.' });
   const token = crypto.randomUUID();
   adminSessions.add(token);
+  res.cookie('adminToken', token, { httpOnly: true, sameSite: 'strict', maxAge: 8 * 60 * 60 * 1000 });
   res.json({ ok: true, token: token });
 });
 
 // ==================== ADMIN PANEL ====================
 
-app.get(ADMIN_URL + '/panel', async function(req, res) {
-  const token = req.query.admin;
+ app.get(ADMIN_URL + '/panel', async function(req, res) {
+  const token = req.cookies && req.cookies.adminToken;
   if (!token || !adminSessions.has(token)) return res.redirect(ADMIN_URL + '?error=' + encodeURIComponent('Please login first'));
   const msg = req.query.msg ? decodeURIComponent(req.query.msg) : '';
   const isError = req.query.err === '1';
-  const a = '?admin=' + token;
+  const a = '';
   try {
     const allUsers = await getAllUsers();
     const allPolls = await getAllPolls();
@@ -778,7 +781,7 @@ app.get(ADMIN_URL + '/panel', async function(req, res) {
 
       '<hr><h2 style="text-align:left;margin-bottom:12px">Generate QR</h2>' +
       '<form method="GET" action="/qr">' +
-        '<input type="hidden" name="admin" value="' + token + '"/>' +
+        
         '<select name="event" style="width:100%;padding:12px;font-size:15px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;margin-bottom:8px">' +
           '<option value="none">No event - standard point only</option>' +
           '<option value="book">Book Club - +1 Book coin</option>' +
