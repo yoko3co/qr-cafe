@@ -7,7 +7,7 @@ const rateLimit = require('express-rate-limit');
 const { DAY }                          = require('../config');
 const { getUser, upsertUser, pool }    = require('../db/pool');
 const { getAllowedNames }              = require('../db/pool');
-const { isAdmin, getUserFromCookie }   = require('../middleware/auth');
+const { isAdmin, getUserFromCookie }   = require('../middleware/session');
 const { escape, page, navBar }         = require('../views/layout');
 
 const limitLottery = rateLimit({ windowMs: 60 * 1000, max: 5, message: 'Too many lottery attempts.' });

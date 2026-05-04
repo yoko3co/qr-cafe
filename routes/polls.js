@@ -5,15 +5,14 @@ const router    = express.Router();
 const rateLimit = require('express-rate-limit');
 
 const { getAllPolls, getPoll, getUser, upsertUser, pool } = require('../db/pool');
-const { getUserFromCookie }                               = require('../middleware/auth');
+const { getUserFromCookie }                    = require('../middleware/session');
+const { getBlockchainVoting, setBlockchainVoting } = require('../services/voting');
 const { escape, page, navBar }                           = require('../views/layout');
 
 const limitVote = rateLimit({ windowMs: 60 * 1000, max: 5, message: 'Too many vote attempts.' });
 
 // In-memory toggle (admin can switch on/off without restart)
-let blockchainVoting = true;
-function getBlockchainVoting()      { return blockchainVoting; }
-function setBlockchainVoting(value) { blockchainVoting = value; }
+
 
 // ==================== POLLS PAGE ====================
 
@@ -114,4 +113,4 @@ router.get('/poll-vote', limitVote, async function(req, res) {
   }
 });
 
-module.exports = { router, getBlockchainVoting, setBlockchainVoting };
+module.exports = router;

@@ -12,8 +12,8 @@ const {
   getAllMissions, getMission, saveMission, deleteMission,
   getUserMissions, completeMission, pool,
 }                                                         = require('../db/pool');
-const { checkAdminToken, generateCsrf, validateCsrf }    = require('../middleware/auth');
-const { setBlockchainVoting, getBlockchainVoting }        = require('./polls');
+const { checkAdminToken, generateCsrf, validateCsrf }    = require('../middleware/session');
+const { setBlockchainVoting, getBlockchainVoting } = require('../services/voting');
 const { fetchAllowedNames }                               = require('../services/hive');
 const { escape, page }                                   = require('../views/layout');
 const { DAY }                                            = require('../config');
@@ -22,7 +22,7 @@ const { DAY }                                            = require('../config');
 
 router.get('/panel', async function(req, res) {
   const token = req.cookies && req.cookies.adminToken;
-  const { adminSessions } = require('../middleware/auth');
+  const { adminSessions } = require('../middleware/session');
   if (!token || !adminSessions.has(token)) {
     return res.redirect(ADMIN_URL + '?error=' + encodeURIComponent('Please login first'));
   }

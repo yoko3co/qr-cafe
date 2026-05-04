@@ -4,7 +4,7 @@ const express = require('express');
 const router  = express.Router();
 
 const { getAllMissions, getUserMissions } = require('../db/pool');
-const { getUserFromCookie }              = require('../middleware/auth');
+const { getUserFromCookie }              = require('../middleware/session');
 const { escape, page, navBar }           = require('../views/layout');
 
 // ==================== MISSIONS PAGE ====================

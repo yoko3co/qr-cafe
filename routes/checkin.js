@@ -8,7 +8,7 @@ const crypto    = require('crypto');
 
 const { BASE_URL, ADMIN_URL, DAY, SESSION_TTL, VERSION } = require('../config');
 const { getAllowedNames, getUser, upsertUser }            = require('../db/pool');
-const { isAdmin, adminSessions, checkAdminToken }         = require('../middleware/auth');
+const { isAdmin, adminSessions, checkAdminToken }         = require('../middleware/session');
 const { escape, page, navBar }                           = require('../views/layout');
 
 const limitDefault = rateLimit({ windowMs: 60 * 1000, max: 10, message: 'Too many requests, slow down.' });
