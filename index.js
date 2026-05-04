@@ -475,7 +475,7 @@ app.get('/leaderboard', async function(req, res) {
       '<h1>Leaderboard</h1>' +
       tabs +
       '<table><tr><th>#</th><th>Player</th><th>' + safeType.charAt(0).toUpperCase() + safeType.slice(1) + '</th></tr>' + rows + '</table>' +
-      '<a class="link" href="/">Back</a>'
+     '<a class="link" href="javascript:history.back()">Back</a>'
     ));
   } catch (e) {
     res.send(page('Error', '<h1>Error</h1><p>' + escape(e.message) + '</p>'));
