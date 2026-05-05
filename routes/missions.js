@@ -78,6 +78,15 @@ router.get('/missions/generate', async function(req, res) {
 });
 
 router.get('/missions/confirm', async function(req, res) {
+  const { adminSessions } = require('../middleware/session');
+  const token = req.cookies && req.cookies.adminToken;
+  if (!token || !adminSessions.has(token)) {
+    return res.send(page('Admin only',
+      '<h1>Admin only</h1>' +
+      '<p>This page can only be opened by an admin device.</p>' +
+      '<a href="/hallmann" class="btn btn-blue">Admin Login</a>'
+    ));
+  }
   try {
     const raw     = Buffer.from(req.query.token || '', 'base64url').toString();
     const payload = JSON.parse(raw);
