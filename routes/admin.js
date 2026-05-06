@@ -221,7 +221,7 @@ router.get('/panel', async function(req, res) {
                   'document.getElementById("poll-form").submit();' +
                 '}else{alert("Hive error: "+r.message);}' +
               '});' +
-            '},500);' +
+            '},1500);' +
           '}' +
           '</script>'
       : '<p style="color:#f87171;font-size:13px;margin-top:8px">Max 5 polls reached.</p>') +
