@@ -213,8 +213,7 @@ router.get('/panel', async function(req, res) {
             'if(!useChain){document.getElementById("poll-form").submit();return;}' +
             'if(typeof window.hive_keychain==="undefined")return alert("Open admin panel in Keychain browser to post on blockchain.");' +
             'var options=[o0,o1,document.getElementById("poll-opt2").value.trim(),document.getElementById("poll-opt3").value.trim()].filter(function(o){return o.length>0;});' +
-            'var json=JSON.stringify({app:"qr-cafe",action:"create_poll",question:q,options:options,created:Date.now()});' +
-'setTimeout(function(){' +
+'var json=JSON.stringify({app:"qr-cafe",action:"create_poll",question:q,options:options,created:Date.now()});' +
 'setTimeout(function(){' +
               'window.hive_keychain.requestCustomJson("test3333","qr-cafe-poll","Posting","[]",json,"QR Cafe Poll",function(r){' +
                 'if(r.success){' +
