@@ -218,7 +218,8 @@ router.get('/panel', async function(req, res) {
             'var options=[o0,o1,o2,o3].filter(function(o){return o.length>0;});' +
             'var ts=new Date().getTime();' +
             'var json=JSON.stringify({app:"qr-cafe",action:"create_poll",question:q,options:options,created:ts});' +
-'setTimeout(function(){' +
+            'alert("json ready: "+json);' +
+            'setTimeout(function(){' +
               'try{' +
               'window.hive_keychain.requestCustomJson("test3333","qr-cafe-poll","Posting",null,json,"QR Cafe Poll",function(r){' +
             'if(r.success){' +
