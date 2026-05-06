@@ -212,8 +212,8 @@ router.get('/panel', async function(req, res) {
             'if(!q||!o0||!o1)return alert("Question and at least 2 options required.");' +
             'var useChain=document.getElementById("blockchain-check").checked;' +
             'if(!useChain){document.getElementById("poll-form").submit();return;}' +
-            'if(typeof window.hive_keychain==="undefined")return alert("Keychain not ready. Refresh and try again.");' +
-            'var o2=document.getElementById("poll-opt2").value.trim();' +
+'if(typeof window.hive_keychain==="undefined")return alert("Keychain not ready. Refresh and try again.");' +
+            'alert("Keychain keys: "+JSON.stringify(Object.keys(window.hive_keychain)));' +            'var o2=document.getElementById("poll-opt2").value.trim();' +
             'var o3=document.getElementById("poll-opt3").value.trim();' +
             'var options=[o0,o1,o2,o3].filter(function(o){return o.length>0;});' +
             'var ts=new Date().getTime();' +
