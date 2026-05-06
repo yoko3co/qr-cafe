@@ -54,9 +54,10 @@ function page(title, body, wide) {
     '<a href="https://www.instagram.com/krolestwo.bez.kresu/" target="_blank" style="margin:0 8px;text-decoration:none;font-size:20px">📸</a>' +
     '<a href="https://www.facebook.com/herberciarnia" target="_blank" style="margin:0 8px;text-decoration:none;font-size:20px">📘</a>' +
     '</div>' +
-    '<span class="version">' + VERSION + '</span>' +
+   '<span class="version">' + VERSION + '</span>' +
     '<a href="/hallmann" style="position:absolute;bottom:12px;left:16px;font-size:11px;color:rgba(255,255,255,0.2);text-decoration:none">admin</a>' +
-    '</div></body></html>';
+    '<a href="/privacy" style="position:absolute;bottom:28px;right:16px;font-size:11px;color:rgba(255,255,255,0.2);text-decoration:none">RODO/Privacy</a>' +
+    '<span style="position:absolute;bottom:28px;left:50%;transform:translateX(-50%);font-size:10px;color:rgba(255,255,255,0.2);white-space:nowrap">Community app · Questions? Ask at Krolestwo</span>' +    '</div></body></html>';
 }
 
 function navBar() {
