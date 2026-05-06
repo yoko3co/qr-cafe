@@ -81,7 +81,8 @@ router.get('/hive-checkin', limitCheckin, async function(req, res) {
       await upsertUser(name, { points:0, book:0, games:0, volunteers:0, film:0, last_visit:0, events_today:{}, voted:{}, random_presses:0, random_day:0 });
       user = await getUser(name);
     }
-    const withinWindow = user.last_visit && (Date.now() - user.last_visit < DAY);
+const withinWindow = user.last_visit && (Date.now() - user.last_visit < DAY);
+    res.cookie('userToken', name, { httpOnly: true, sameSite: 'strict', maxAge: 12 * 60 * 60 * 1000 });
     const eventsToday  = withinWindow ? (user.events_today || {}) : {};
     const eventType    = s.event || 'none';
 
