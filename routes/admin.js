@@ -205,6 +205,7 @@ router.get('/panel', async function(req, res) {
           '</form>' +
           '<script>' +
           'function submitPoll(){' +
+            'alert("submitPoll running");' +
             'var q=document.getElementById("poll-question").value.trim();' +
             'var o0=document.getElementById("poll-opt0").value.trim();' +
             'var o1=document.getElementById("poll-opt1").value.trim();' +
