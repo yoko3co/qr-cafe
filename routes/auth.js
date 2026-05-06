@@ -3,9 +3,39 @@
 const express = require('express');
 const router  = express.Router();
 
-const { BASE_URL, ADMIN_URL, LEGAL_VERSION }               = require('../config');const { getAllowedNames }                                  = require('../db/pool');
-const { isAdmin, adminSessions, createAdminSession }      = require('../middleware/session');
-const { escape, page }                                    = require('../views/layout');
+const { BASE_URL, ADMIN_URL, LEGAL_VERSION }          = require('../config');
+const { getAllowedNames }                              = require('../db/pool');
+const { isAdmin, adminSessions, createAdminSession }  = require('../middleware/session');
+const { escape, page }                               = require('../views/layout');
+
+// ==================== PRIVACY PAGE ====================
+
+router.get('/privacy', function(req, res) {
+  res.send(page('Privacy / RODO',
+    '<h1>Privacy Policy</h1>' +
+    '<h2>RODO / GDPR</h2>' +
+    '<div style="text-align:left">' +
+    '<p style="color:#fbbf24;font-size:13px;font-weight:600">PL — Polityka Prywatnosci</p>' +
+    '<p><strong>Administrator danych:</strong> Krolestwo bez Kresu</p>' +
+    '<p><strong>Co przechowujemy:</strong> Nazwe uzytkownika Hive, historie aktywnosci (wizyty, punkty, glosy), date ostatniej wizyty.</p>' +
+    '<p><strong>Cel:</strong> Wylacznie spolecznosciowy. Dane nie sa udostepniane osobom trzecim ani wykorzystywane komercyjnie.</p>' +
+    '<p><strong>Czas przechowywania:</strong> Do usuniecia konta lub zamkniecia projektu.</p>' +
+    '<p><strong>Twoje prawa:</strong> Wglad, poprawa, usuniecie danych. Skontaktuj sie przez Instagram lub Facebook.</p>' +
+    '<p><strong>Kontakt:</strong> <a href="https://www.instagram.com/krolestwo.bez.kresu/" target="_blank" style="color:#60a5fa">Instagram</a> | <a href="https://www.facebook.com/herberciarnia" target="_blank" style="color:#60a5fa">Facebook</a></p>' +
+    '<hr>' +
+    '<p style="color:#fbbf24;font-size:13px;font-weight:600">EN — Privacy Policy</p>' +
+    '<p><strong>Data controller:</strong> Krolestwo bez Kresu</p>' +
+    '<p><strong>What we store:</strong> Hive username, activity history (visits, points, votes), last visit date.</p>' +
+    '<p><strong>Purpose:</strong> Community use only. Data is never shared with third parties or used commercially.</p>' +
+    '<p><strong>Retention:</strong> Until account deletion or project closure.</p>' +
+    '<p><strong>Your rights:</strong> Access, correct and delete your data. Contact us via Instagram or Facebook.</p>' +
+    '<p><strong>Contact:</strong> <a href="https://www.instagram.com/krolestwo.bez.kresu/" target="_blank" style="color:#60a5fa">Instagram</a> | <a href="https://www.facebook.com/herberciarnia" target="_blank" style="color:#60a5fa">Facebook</a></p>' +
+    '</div>' +
+    '<a href="/" class="btn btn-gray" style="margin-top:8px">Back</a>'
+  ));
+});
+
+// ==================== CONSENT PAGE ====================
 
 router.get('/consent', function(req, res) {
   const next = req.query.next || '/';
@@ -25,11 +55,13 @@ router.get('/consent', function(req, res) {
     'function accept(){' +
       'if(!document.getElementById("consent-check").checked)return alert("Please tick the box to continue.");' +
       'document.cookie="consent=1;path=/;max-age=31536000";' +
-      'window.location.href="' + '"+decodeURIComponent("' + encodeURIComponent(next) + '");' +
+      'window.location.href=decodeURIComponent("' + encodeURIComponent(next) + '");' +
     '}' +
     '</script>'
   ));
 });
+
+// ==================== LOGIN PAGE ====================
 
 router.get('/', function(req, res) {
   const name = req.cookies && req.cookies.userToken;
@@ -40,7 +72,6 @@ router.get('/', function(req, res) {
     '<h2>Witamy w Krolestwie!</h2>' +
     '<div class="info">Chcesz zalozyc konto?<br><strong>Zapytaj w Krolestwie!</strong></div>' +
     '<hr>' +
-    '<p style="font-size:11px;color:#555;margin-bottom:12px">By logging in you agree that your participation data is stored solely for community engagement and will never be shared or used commercially.</p>' +
     '<a href="hive://browser?url=' + encodeURIComponent(BASE_URL + '/') + '" class="btn btn-blue" id="open-keychain">Open in Keychain App</a>' +
     '<script>' +
     'if(typeof window.hive_keychain!=="undefined"){' +
@@ -48,10 +79,7 @@ router.get('/', function(req, res) {
       'var btn=document.createElement("button");' +
       'btn.className="btn btn-blue";' +
       'btn.innerText="Login with Hive Keychain";' +
-      'document.getElementById("consent-box").style.display="block";' +
-    'document.getElementById("consent-box").style.display="block";' +
       'btn.onclick=function(){' +
-        'if(!document.getElementById("consent-check").checked)return alert("Please agree to the terms to continue.");' +
         'window.hive_keychain.requestSignBuffer(null,"qrcafe-login","Posting",function(r){' +
           'if(r.success){' +
             'fetch("/keychain-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:r.data.username,consent:true})})' +
@@ -60,16 +88,15 @@ router.get('/', function(req, res) {
           '}else{alert("Error: "+r.message);}' +
         '});' +
       '};' +
-        '});' +
-      '};' +
       'document.getElementById("open-keychain").insertAdjacentElement("afterend",btn);' +
     '}' +
     '</script>' +
-  
     '<a class="link" href="/leaderboard">View Leaderboard</a>' +
     '<a class="link" href="/polls">View Polls</a>'
   ));
 });
+
+// ==================== KEYCHAIN AUTH ====================
 
 router.post('/keychain-auth', async function(req, res) {
   const username = (req.body.username || '').trim().toLowerCase();
@@ -79,11 +106,13 @@ router.post('/keychain-auth', async function(req, res) {
   if (!names.has(username) && !isAdmin(username)) {
     return res.json({ ok: false, error: 'Your name is not on the guest list' });
   }
-const { pool } = require('../db/pool');
+  const { pool } = require('../db/pool');
   await pool.query('UPDATE users SET legal_version=$1 WHERE hive_name=$2', [LEGAL_VERSION, username]).catch(function(){});
   res.cookie('userToken', username, { httpOnly: true, sameSite: 'strict', maxAge: 12 * 60 * 60 * 1000 });
   res.json({ ok: true });
 });
+
+// ==================== ADMIN LOGIN ====================
 
 router.get('/hallmann', function(req, res) {
   const token = req.cookies && req.cookies.adminToken;
