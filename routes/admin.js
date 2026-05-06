@@ -211,12 +211,11 @@ router.get('/panel', async function(req, res) {
             'if(!q||!o0||!o1)return alert("Question and at least 2 options required.");' +
             'var useChain=document.getElementById("blockchain-check").checked;' +
             'if(!useChain){document.getElementById("poll-form").submit();return;}' +
-            'if(typeof window.hive_keychain==="undefined")return alert("Open admin panel in Keychain browser to post on blockchain.");' +
-            'var options=[o0,o1,document.getElementById("poll-opt2").value.trim(),document.getElementById("poll-opt3").value.trim()].filter(function(o){return o.length>0;});' +
+'if(typeof window.hive_keychain==="undefined"||!window.hive_keychain.requestCustomJson)return alert("Keychain not ready. Please refresh the page and try again.");' +            'var options=[o0,o1,document.getElementById("poll-opt2").value.trim(),document.getElementById("poll-opt3").value.trim()].filter(function(o){return o.length>0;});' +
 'var json=JSON.stringify({app:"qr-cafe",action:"create_poll",question:q,options:options,created:Date.now()});' +
 'setTimeout(function(){' +
-              'window.hive_keychain.requestCustomJson("test3333","qr-cafe-poll","Posting","[]",json,"QR Cafe Poll",function(r){' +
-                'if(r.success){' +
+              'console.log("Keychain object:",window.hive_keychain);' +
+              'window.hive_keychain.requestCustomJson("test3333","qr-cafe-poll","Posting","[]",json,"QR Cafe Poll",function(r){' +                'if(r.success){' +
                   'document.getElementById("blockchain-val").value="1";' +
                   'document.getElementById("poll-form").submit();' +
                 '}else{alert("Hive error: "+r.message);}' +
