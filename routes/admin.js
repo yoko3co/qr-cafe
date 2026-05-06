@@ -218,17 +218,19 @@ router.get('/panel', async function(req, res) {
             'var options=[o0,o1,o2,o3].filter(function(o){return o.length>0;});' +
             'var ts=new Date().getTime();' +
             'var json=JSON.stringify({app:"qr-cafe",action:"create_poll",question:q,options:options,created:ts});' +
-            'setTimeout(function(){' +
+'setTimeout(function(){' +
+              'try{' +
               'window.hive_keychain.requestCustomJson("test3333","qr-cafe-poll","Posting",null,json,"QR Cafe Poll",function(r){' +
-                'if(r.success){' +
+            'if(r.success){' +
                   'document.getElementById("blockchain-val").value="1";' +
                   'document.getElementById("poll-form").submit();' +
                 '}else{' +
                   'alert("Hive error: "+r.message);' +
                 '}' +
-              '});' +
+'});' +
+              '}catch(e){alert("Keychain error: "+e.message);}' +
             '},1500);' +
-          '}' +
+                '}' +
 '</script>'
       : '<p style="color:#f87171;font-size:13px;margin-top:8px">Max 5 polls reached.</p>') +      (allPastPolls.length > 0
         ? '<hr><h2 style="text-align:left;margin-bottom:12px">Past Polls</h2>' +
