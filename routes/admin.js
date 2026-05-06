@@ -211,19 +211,25 @@ router.get('/panel', async function(req, res) {
             'if(!q||!o0||!o1)return alert("Question and at least 2 options required.");' +
             'var useChain=document.getElementById("blockchain-check").checked;' +
             'if(!useChain){document.getElementById("poll-form").submit();return;}' +
-'if(typeof window.hive_keychain==="undefined"||!window.hive_keychain.requestCustomJson)return alert("Keychain not ready. Please refresh the page and try again.");' +            'var options=[o0,o1,document.getElementById("poll-opt2").value.trim(),document.getElementById("poll-opt3").value.trim()].filter(function(o){return o.length>0;});' +
-'var json=JSON.stringify({app:"qr-cafe",action:"create_poll",question:q,options:options,created:Date.now()});' +
-'setTimeout(function(){' +
-              'console.log("Keychain object:",window.hive_keychain);' +
-'window.hive_keychain.requestCustomJson("test3333","qr-cafe-poll","Posting",null,json,"QR Cafe Poll",function(r){' +                  'document.getElementById("blockchain-val").value="1";' +
+            'if(typeof window.hive_keychain==="undefined")return alert("Keychain not ready. Refresh and try again.");' +
+            'var o2=document.getElementById("poll-opt2").value.trim();' +
+            'var o3=document.getElementById("poll-opt3").value.trim();' +
+            'var options=[o0,o1,o2,o3].filter(function(o){return o.length>0;});' +
+            'var ts=new Date().getTime();' +
+            'var json=JSON.stringify({app:"qr-cafe",action:"create_poll",question:q,options:options,created:ts});' +
+            'setTimeout(function(){' +
+              'window.hive_keychain.requestCustomJson("test3333","qr-cafe-poll","Posting",null,json,"QR Cafe Poll",function(r){' +
+                'if(r.success){' +
+                  'document.getElementById("blockchain-val").value="1";' +
                   'document.getElementById("poll-form").submit();' +
-                '}else{alert("Hive error: "+r.message);}' +
+                '}else{' +
+                  'alert("Hive error: "+r.message);' +
+                '}' +
               '});' +
             '},1500);' +
           '}' +
-          '</script>'
-      : '<p style="color:#f87171;font-size:13px;margin-top:8px">Max 5 polls reached.</p>') +
-      (allPastPolls.length > 0
+'</script>'
+      : '<p style="color:#f87171;font-size:13px;margin-top:8px">Max 5 polls reached.</p>') +      (allPastPolls.length > 0
         ? '<hr><h2 style="text-align:left;margin-bottom:12px">Past Polls</h2>' +
           '<table><tr><th>Question</th><th>Total</th><th>Results</th></tr>' + pastRows + '</table>'
         : '') +
