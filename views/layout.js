@@ -54,11 +54,11 @@ function page(title, body, wide) {
     '<a href="https://www.instagram.com/krolestwo.bez.kresu/" target="_blank" style="margin:0 8px;text-decoration:none;font-size:20px">📸</a>' +
     '<a href="https://www.facebook.com/herberciarnia" target="_blank" style="margin:0 8px;text-decoration:none;font-size:20px">📘</a>' +
     '</div>' +
-   '<span class="version">' + VERSION + '</span>' +
-    '<a href="/hallmann" style="position:absolute;bottom:12px;left:16px;font-size:11px;color:rgba(255,255,255,0.2);text-decoration:none">admin</a>' +
-    '<a href="/privacy" style="position:absolute;bottom:28px;right:16px;font-size:11px;color:rgba(255,255,255,0.2);text-decoration:none">RODO/Privacy</a>' +
-    '<span style="position:absolute;bottom:28px;left:50%;transform:translateX(-50%);font-size:10px;color:rgba(255,255,255,0.2);white-space:nowrap">Community app · Questions? Ask at Krolestwo</span>' +    '</div></body></html>';
-}
+'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.07)">' +
+      '<a href="/hallmann" style="font-size:11px;color:rgba(255,255,255,0.2);text-decoration:none">admin</a>' +
+      '<span style="font-size:10px;color:rgba(255,255,255,0.2)">' + VERSION + ' · <a href="/privacy" style="color:rgba(255,255,255,0.2);text-decoration:none">RODO</a></span>' +
+      '<span style="font-size:10px;color:rgba(255,255,255,0.2)">Ask at Krolestwo</span>' +
+    '</div>' }
 
 function navBar() {
   return '<div class="nav">' +
@@ -66,6 +66,7 @@ function navBar() {
     '<a href="/leaderboard" class="btn btn-gray">Leaders</a>' +
     '<a href="/missions" class="btn btn-gold">Missions</a>' +
     '<a href="/polls" class="btn btn-gray">Voting</a>' +
+    '<a href="/profile" class="btn btn-gray">Profile</a>' +
     '</div>';
 }
 
