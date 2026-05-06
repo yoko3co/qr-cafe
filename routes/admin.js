@@ -25,6 +25,46 @@ function csrfOk(req, res) {
   return true;
 }
 
+router.get('/export-csv', async function(req, res) {
+  if (!checkAdminSession(req, res)) return;
+  try {
+    const users = await getAllUsers();
+    const lines = ['name,points,book,games,volunteers,film,legal_version,last_visit'];
+    users.forEach(function(u) {
+      const lastVisit = u.last_visit ? new Date(u.last_visit).toISOString() : 'never';
+      lines.push([
+        u.hive_name, u.points||0, u.book||0, u.games||0,
+        u.volunteers||0, u.film||0, u.legal_version||'none', lastVisit
+      ].join(','));
+    });
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="krolestwo-users-' + new Date().toISOString().slice(0,10) + '.csv"');
+    res.send(lines.join('\n'));
+  } catch (e) {
+    res.send('Error: ' + e.message);
+  }
+});
+
+router.get('/export-csv', async function(req, res) {
+  if (!checkAdminSession(req, res)) return;
+  try {
+    const users = await getAllUsers();
+    const lines = ['name,points,book,games,volunteers,film,legal_version,last_visit'];
+    users.forEach(function(u) {
+      const lastVisit = u.last_visit ? new Date(u.last_visit).toISOString() : 'never';
+      lines.push([
+        u.hive_name, u.points||0, u.book||0, u.games||0,
+        u.volunteers||0, u.film||0, u.legal_version||'none', lastVisit
+      ].join(','));
+    });
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="krolestwo-users-' + new Date().toISOString().slice(0,10) + '.csv"');
+    res.send(lines.join('\n'));
+  } catch (e) {
+    res.send('Error: ' + e.message);
+  }
+});
+
 router.get('/panel', async function(req, res) {
   if (!checkAdminSession(req, res)) return;
   const msg     = req.query.msg ? decodeURIComponent(req.query.msg) : '';
@@ -197,7 +237,10 @@ router.get('/panel', async function(req, res) {
           '</form>'
         : '') +
 
-      '<hr><a class="link" href="/leaderboard">Leaderboard</a><a class="link" href="/">Home</a>'
+      '<hr>' +
+      '<a href="' + ADMIN_URL + '/export-csv" class="btn btn-blue" style="margin-bottom:8px">Download users CSV</a>' +
+      '<a class="link" href="/leaderboard">Leaderboard</a>' +
+      '<a class="link" href="/">Home</a>'
     , true));
   } catch (e) {
     res.send(page('Error', '<h1>Error</h1><p>' + escape(e.message) + '</p>'));
