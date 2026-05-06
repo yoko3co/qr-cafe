@@ -58,7 +58,8 @@ function page(title, body, wide) {
       '<a href="/hallmann" style="font-size:11px;color:rgba(255,255,255,0.2);text-decoration:none">admin</a>' +
       '<span style="font-size:10px;color:rgba(255,255,255,0.2)">' + VERSION + ' · <a href="/privacy" style="color:rgba(255,255,255,0.2);text-decoration:none">RODO</a></span>' +
       '<span style="font-size:10px;color:rgba(255,255,255,0.2)">Ask at Krolestwo</span>' +
-    '</div>' }
+    '</div>';
+}
 
 function navBar() {
   return '<div class="nav">' +
@@ -66,6 +67,7 @@ function navBar() {
     '<a href="/leaderboard" class="btn btn-gray">Leaders</a>' +
     '<a href="/missions" class="btn btn-gold">Missions</a>' +
     '<a href="/polls" class="btn btn-gray">Voting</a>' +
+    '<a href="/events" class="btn btn-gray">Events</a>' +
     '<a href="/profile" class="btn btn-gray">Profile</a>' +
     '</div>';
 }
