@@ -10,6 +10,21 @@ const { escape, page }                               = require('../views/layout'
 
 // ==================== PRIVACY PAGE ====================
 
+router.get('/events', function(req, res) {
+  res.send(page('Events',
+    '<h1>Events</h1>' +
+    '<h2>Upcoming at Krolestwo</h2>' +
+    '<div style="margin:-20px -32px 0">' +
+      '<iframe src="https://lu.ma/embed/calendar/cal-EubuBUyhB1cAGeA/events" ' +
+        'style="width:100%;height:600px;border:none;border-radius:0 0 20px 20px;" ' +
+        'allowfullscreen ' +
+        'aria-hidden="false" ' +
+        'tabindex="0">' +
+      '</iframe>' +
+    '</div>'
+  ));
+});
+
 router.get('/privacy', function(req, res) {
   res.send(page('Privacy / RODO',
     '<h1>Privacy Policy</h1>' +
