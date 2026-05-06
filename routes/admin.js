@@ -215,8 +215,7 @@ router.get('/panel', async function(req, res) {
 'var json=JSON.stringify({app:"qr-cafe",action:"create_poll",question:q,options:options,created:Date.now()});' +
 'setTimeout(function(){' +
               'console.log("Keychain object:",window.hive_keychain);' +
-              'window.hive_keychain.requestCustomJson("test3333","qr-cafe-poll","Posting","[]",json,"QR Cafe Poll",function(r){' +                'if(r.success){' +
-                  'document.getElementById("blockchain-val").value="1";' +
+'window.hive_keychain.requestCustomJson("test3333","qr-cafe-poll","Posting",null,json,"QR Cafe Poll",function(r){' +                  'document.getElementById("blockchain-val").value="1";' +
                   'document.getElementById("poll-form").submit();' +
                 '}else{alert("Hive error: "+r.message);}' +
               '});' +
