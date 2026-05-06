@@ -203,6 +203,13 @@ router.get('/home', async function(req, res) {
         pollsHtml +
       '</div>' +
 
+      (tierIdx === 0
+        ? '<div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:12px;padding:14px;margin-bottom:12px;text-align:left">' +
+            '<div style="font-size:13px;font-weight:600;color:#fbbf24;margin-bottom:6px">🔓 Reach 10 points to unlock</div>' +
+            '<div style="font-size:12px;color:#aaa;margin-bottom:4px">✓ Who checked in today</div>' +
+            '<div style="font-size:11px;color:#555;margin-top:8px">Keep checking in and earning coins to level up!</div>' +
+          '</div>'
+        : '') +
       '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:14px;margin-bottom:12px;text-align:left">' +
         '<div style="margin-bottom:10px">' +
           '<span style="font-size:13px;font-weight:600;color:#fff">Upcoming Tiers</span>' +
