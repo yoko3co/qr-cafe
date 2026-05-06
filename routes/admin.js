@@ -15,7 +15,7 @@ const {
 const { checkAdminSession, generateCsrf, validateCsrf }                = require('../middleware/session');
 const { fetchAllowedNames }                                             = require('../services/hive');
 const { escape, page }                                                 = require('../views/layout');
-const { getBlockchainVoting, setBlockchainVoting }                     = require('./polls');
+// blockchain voting is now per-poll
 
 function csrfOk(req, res) {
   if (!validateCsrf(req.body._csrf)) {
@@ -70,7 +70,7 @@ router.get('/panel', async function(req, res) {
   const msg     = req.query.msg ? decodeURIComponent(req.query.msg) : '';
   const isError = req.query.err === '1';
   const csrf    = generateCsrf();
-  const bcVote  = getBlockchainVoting();
+  
 
   try {
     const allUsers     = await getAllUsers();
@@ -168,12 +168,7 @@ router.get('/panel', async function(req, res) {
         '<button type="submit" class="btn btn-green">Generate QR Code</button>' +
       '</form>' +
 
-      '<hr><h2 style="text-align:left;margin-bottom:8px">Blockchain Voting</h2>' +
-      '<p style="text-align:left;color:#aaa;font-size:13px">Currently: <strong style="color:' + (bcVote?'#4ade80':'#f87171') + '">' + (bcVote?'ON':'OFF') + '</strong></p>' +
-      '<form method="POST" action="' + ADMIN_URL + '/toggle-blockchain">' +
-        '<input type="hidden" name="_csrf" value="' + csrf + '"/>' +
-        '<button type="submit" class="btn ' + (bcVote?'btn-red':'btn-green') + '">' + (bcVote?'Turn OFF':'Turn ON') + '</button>' +
-      '</form>' +
+      
 
       '<hr><h2 style="text-align:left;margin-bottom:12px">Users (' + allUsers.length + ')</h2>' +
       '<div style="overflow-x:auto"><table><tr><th>Name</th><th>Pts</th><th>Today</th><th>Actions</th></tr>' + userRows + '</table></div>' +
@@ -193,18 +188,41 @@ router.get('/panel', async function(req, res) {
 
       '<hr><h2 style="text-align:left;margin-bottom:12px">Active Polls (' + allPolls.length + '/5)</h2>' +
       '<table><tr><th>Question</th><th>Status</th><th>Votes</th><th>Actions</th></tr>' + pollRows + '</table>' +
-      (allPolls.length < 5
-        ? '<form method="POST" action="' + ADMIN_URL + '/add-poll" style="margin-top:16px">' +
+(allPolls.length < 5
+        ? '<form id="poll-form" method="POST" action="' + ADMIN_URL + '/add-poll" style="margin-top:16px">' +
             '<input type="hidden" name="_csrf" value="' + csrf + '"/>' +
-            '<input type="text" name="question" placeholder="Poll question..." required style="margin-bottom:8px"/>' +
-            '<input type="text" name="opt0" placeholder="Option 1" required style="margin-bottom:6px"/>' +
-            '<input type="text" name="opt1" placeholder="Option 2" required style="margin-bottom:6px"/>' +
-            '<input type="text" name="opt2" placeholder="Option 3 (optional)" style="margin-bottom:6px"/>' +
-            '<input type="text" name="opt3" placeholder="Option 4 (optional)" style="margin-bottom:6px"/>' +
-            '<button type="submit" class="btn btn-gold">Add Poll</button>' +
-          '</form>'
-        : '<p style="color:#f87171;font-size:13px;margin-top:8px">Max 5 polls reached.</p>') +
-
+            '<input type="hidden" name="blockchain" id="blockchain-val" value="0"/>' +
+            '<input type="text" name="question" id="poll-question" placeholder="Poll question..." required style="margin-bottom:8px"/>' +
+            '<input type="text" name="opt0" id="poll-opt0" placeholder="Option 1" required style="margin-bottom:6px"/>' +
+            '<input type="text" name="opt1" id="poll-opt1" placeholder="Option 2" required style="margin-bottom:6px"/>' +
+            '<input type="text" name="opt2" id="poll-opt2" placeholder="Option 3 (optional)" style="margin-bottom:6px"/>' +
+            '<input type="text" name="opt3" id="poll-opt3" placeholder="Option 4 (optional)" style="margin-bottom:6px"/>' +
+            '<label style="display:flex;gap:10px;align-items:center;margin-bottom:12px;cursor:pointer;font-size:13px;color:#aaa;text-align:left">' +
+              '<input type="checkbox" id="blockchain-check" style="width:auto"/>' +
+              '<span>Post to Hive blockchain (test3333)</span>' +
+            '</label>' +
+            '<button type="button" class="btn btn-gold" onclick="submitPoll()">Add Poll</button>' +
+          '</form>' +
+          '<script>' +
+          'function submitPoll(){' +
+            'var q=document.getElementById("poll-question").value.trim();' +
+            'var o0=document.getElementById("poll-opt0").value.trim();' +
+            'var o1=document.getElementById("poll-opt1").value.trim();' +
+            'if(!q||!o0||!o1)return alert("Question and at least 2 options required.");' +
+            'var useChain=document.getElementById("blockchain-check").checked;' +
+            'if(!useChain){document.getElementById("poll-form").submit();return;}' +
+            'if(typeof window.hive_keychain==="undefined")return alert("Open admin panel in Keychain browser to post on blockchain.");' +
+            'var options=[o0,o1,document.getElementById("poll-opt2").value.trim(),document.getElementById("poll-opt3").value.trim()].filter(function(o){return o.length>0;});' +
+            'var json=JSON.stringify({app:"qr-cafe",action:"create_poll",question:q,options:options,created:Date.now()});' +
+            'window.hive_keychain.requestCustomJson("test3333","qr-cafe-poll","Posting","[]",json,"QR Cafe Poll",function(r){' +
+              'if(r.success){' +
+                'document.getElementById("blockchain-val").value="1";' +
+                'document.getElementById("poll-form").submit();' +
+              '}else{alert("Hive error: "+r.message);}' +
+            '});' +
+          '}' +
+          '</script>'
+      : '<p style="color:#f87171;font-size:13px;margin-top:8px">Max 5 polls reached.</p>') +
       (allPastPolls.length > 0
         ? '<hr><h2 style="text-align:left;margin-bottom:12px">Past Polls</h2>' +
           '<table><tr><th>Question</th><th>Total</th><th>Results</th></tr>' + pastRows + '</table>'
@@ -296,7 +314,8 @@ router.post('/add-poll', async function(req, res) {
   const options  = [req.body.opt0,req.body.opt1,req.body.opt2,req.body.opt3]
     .map(function(o){return (o||'').trim().slice(0,100);}).filter(function(o){return o.length>0;});
   if (!question||options.length<2) return res.redirect(ADMIN_URL + '/panel?err=1&msg=' + encodeURIComponent('Need question and 2+ options'));
-  await savePoll(crypto.randomUUID(), { question:question, options:options, votes:options.map(function(){return 0;}), status:'active' });
+const useBlockchain = req.body.blockchain === '1';
+  await savePoll(crypto.randomUUID(), { question:question, options:options, votes:options.map(function(){return 0;}), status:'active', blockchain:useBlockchain });
   res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Poll added'));
 });
 
@@ -319,12 +338,6 @@ router.post('/stop-poll', async function(req, res) {
   res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Poll stopped and saved'));
 });
 
-router.post('/toggle-blockchain', function(req, res) {
-  if (!checkAdminSession(req, res)) return;
-  if (!csrfOk(req, res)) return;
-  setBlockchainVoting(!getBlockchainVoting());
-  res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Blockchain voting: ' + (getBlockchainVoting()?'ON':'OFF')));
-});
 
 router.post('/add-mission', async function(req, res) {
   if (!checkAdminSession(req, res)) return;
