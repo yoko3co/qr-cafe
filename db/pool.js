@@ -31,9 +31,11 @@ async function initDB() {
         options    JSONB NOT NULL,
         votes      JSONB NOT NULL,
         status     TEXT DEFAULT 'active',
+        blockchain BOOLEAN DEFAULT false,
         created_at BIGINT DEFAULT 0
       );
     `);
+    await pool.query('ALTER TABLE polls ADD COLUMN IF NOT EXISTS blockchain BOOLEAN DEFAULT false');
     await pool.query(`
       CREATE TABLE IF NOT EXISTS past_polls (
         id         SERIAL PRIMARY KEY,
@@ -67,14 +69,31 @@ async function initDB() {
         PRIMARY KEY (hive_name, mission_id)
       );
     `);
-    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS events_today JSONB DEFAULT \'{}\'');
-    const { allowedNames } = require('../allowedNames');
+await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS events_today JSONB DEFAULT \'{}\'');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS legal_version TEXT DEFAULT NULL');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS rcr_balance INTEGER DEFAULT 0');
+    await seedRCR();
     for (const name of allowedNames) {
       await pool.query('INSERT INTO allowed_names (name) VALUES ($1) ON CONFLICT DO NOTHING', [name]);
     }
     console.log('DB ready, names seeded:', allowedNames.size);
   } catch (e) {
     console.log('DB init error:', e.message);
+  }
+}
+
+async function seedRCR() {
+  try {
+    const { RCR_SEED } = require('../rcr');
+    for (const name of Object.keys(RCR_SEED)) {
+      await pool.query(
+        'INSERT INTO users (hive_name, rcr_balance) VALUES ($1, $2) ON CONFLICT (hive_name) DO UPDATE SET rcr_balance=$2 WHERE users.rcr_balance=0',
+        [name, RCR_SEED[name]]
+      );
+    }
+    console.log('RCR seed done');
+  } catch (e) {
+    console.log('RCR seed error:', e.message);
   }
 }
 
@@ -129,10 +148,10 @@ async function getPoll(pid) {
 
 async function savePoll(pid, poll) {
   await pool.query(`
-    INSERT INTO polls (id,question,options,votes,status,created_at)
-    VALUES ($1,$2,$3,$4,$5,$6)
-    ON CONFLICT (id) DO UPDATE SET question=$2,options=$3,votes=$4,status=$5
-  `, [pid, poll.question, JSON.stringify(poll.options), JSON.stringify(poll.votes), poll.status, Date.now()]);
+    INSERT INTO polls (id,question,options,votes,status,blockchain,created_at)
+    VALUES ($1,$2,$3,$4,$5,$6,$7)
+    ON CONFLICT (id) DO UPDATE SET question=$2,options=$3,votes=$4,status=$5,blockchain=$6
+  `, [pid, poll.question, JSON.stringify(poll.options), JSON.stringify(poll.votes), poll.status, poll.blockchain||false, Date.now()]);
 }
 
 async function deletePoll(pid) {
@@ -186,7 +205,7 @@ async function completeMission(name, mid) {
 }
 
 module.exports = {
-  pool, initDB,
+  pool, initDB, seedRCR,
   getUser, upsertUser, getAllUsers, deleteUser,
   getAllowedNames, addAllowedName, removeAllowedName,
   getAllPolls, getPoll, savePoll, deletePoll, savePastPoll, getPastPolls,
