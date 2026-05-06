@@ -45,7 +45,8 @@ router.get('/check', function(req, res) {
   const s = sessions.get(req.query.session);
   if (!s) return res.send(page('Invalid QR', '<h1>Invalid QR Code</h1><p>Please scan a fresh QR code.</p>'));
   if (Date.now() > s.expiresAt) return res.send(page('Expired', '<h1>QR Code Expired</h1><p>Please scan a fresh QR code.</p>'));
-  const error = req.query.error ? decodeURIComponent(req.query.error) : '';
+  if (!req.cookies || !req.cookies.consent) return res.redirect('/consent?next=' + encodeURIComponent('/check?session=' + req.query.session));
+if (!req.cookies || !req.cookies.consent) return res.redirect('/consent?next=' + encodeURIComponent('/check?session=' + req.query.session));  const error = req.query.error ? decodeURIComponent(req.query.error) : '';
   res.send(page('Check In',
     '<h1>QR Cafe</h1><h2>Check In</h2>' +
     (error ? '<div class="error">' + escape(error) + '</div>' : '') +
