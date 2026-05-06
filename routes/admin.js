@@ -4,18 +4,17 @@ const express = require('express');
 const router  = express.Router();
 const crypto  = require('crypto');
 
-const { ADMIN_URL, VERSION, DAY }                                       = require('../config');
+const { ADMIN_URL, VERSION, DAY }                  = require('../config');
 const {
   pool, getAllUsers, deleteUser, getUser, upsertUser,
   getAllowedNames, addAllowedName, removeAllowedName,
   getAllPolls, getPoll, savePoll, deletePoll, savePastPoll, getPastPolls,
   getAllMissions, getMission, saveMission, deleteMission,
   getUserMissions, completeMission,
-}                                                                       = require('../db/pool');
-const { checkAdminSession, generateCsrf, validateCsrf }                = require('../middleware/session');
-const { fetchAllowedNames }                                             = require('../services/hive');
-const { escape, page }                                                 = require('../views/layout');
-// blockchain voting is now per-poll
+}                                                  = require('../db/pool');
+const { checkAdminSession, generateCsrf, validateCsrf } = require('../middleware/session');
+const { fetchAllowedNames }                        = require('../services/hive');
+const { escape, page }                            = require('../views/layout');
 
 function csrfOk(req, res) {
   if (!validateCsrf(req.body._csrf)) {
@@ -25,25 +24,7 @@ function csrfOk(req, res) {
   return true;
 }
 
-router.get('/export-csv', async function(req, res) {
-  if (!checkAdminSession(req, res)) return;
-  try {
-    const users = await getAllUsers();
-    const lines = ['name,points,book,games,volunteers,film,legal_version,last_visit'];
-    users.forEach(function(u) {
-      const lastVisit = u.last_visit ? new Date(u.last_visit).toISOString() : 'never';
-      lines.push([
-        u.hive_name, u.points||0, u.book||0, u.games||0,
-        u.volunteers||0, u.film||0, u.legal_version||'none', lastVisit
-      ].join(','));
-    });
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="krolestwo-users-' + new Date().toISOString().slice(0,10) + '.csv"');
-    res.send(lines.join('\n'));
-  } catch (e) {
-    res.send('Error: ' + e.message);
-  }
-});
+// ==================== CSV EXPORT ====================
 
 router.get('/export-csv', async function(req, res) {
   if (!checkAdminSession(req, res)) return;
@@ -64,13 +45,14 @@ router.get('/export-csv', async function(req, res) {
     res.send('Error: ' + e.message);
   }
 });
+
+// ==================== ADMIN PANEL ====================
 
 router.get('/panel', async function(req, res) {
   if (!checkAdminSession(req, res)) return;
   const msg     = req.query.msg ? decodeURIComponent(req.query.msg) : '';
   const isError = req.query.err === '1';
   const csrf    = generateCsrf();
-  
 
   try {
     const allUsers     = await getAllUsers();
@@ -82,7 +64,7 @@ router.get('/panel', async function(req, res) {
     const userRows = allUsers.length === 0
       ? '<tr><td colspan="4" style="color:#555;text-align:center;padding:16px">No users yet</td></tr>'
       : allUsers.map(function(u) {
-          const checkedIn = u.last_visit && Date.now() - u.last_visit < DAY ? 'Yes' : 'No';
+          const checkedIn = u.last_visit && (Date.now() - u.last_visit < DAY) ? 'Yes' : 'No';
           return '<tr>' +
             '<td><strong>' + escape(u.hive_name) + '</strong></td>' +
             '<td>' + (u.points||0).toFixed(1) + '</td>' +
@@ -116,7 +98,7 @@ router.get('/panel', async function(req, res) {
       : allPolls.map(function(poll) {
           const total = poll.votes.reduce(function(a, b) { return a+b; }, 0);
           return '<tr>' +
-            '<td>' + escape(poll.question) + '</td>' +
+            '<td>' + escape(poll.question) + (poll.blockchain ? ' <span style="font-size:11px;color:#fbbf24">Hive</span>' : '') + '</td>' +
             '<td style="color:' + (poll.status==='active'?'#4ade80':'#fbbf24') + '">' + poll.status + '</td>' +
             '<td>' + total + '</td>' +
             '<td>' +
@@ -152,6 +134,34 @@ router.get('/panel', async function(req, res) {
     const missionOptions = allMissions.filter(function(m) { return m.status==='active'; })
       .map(function(m) { return '<option value="' + m.id + '">' + escape(m.title) + '</option>'; }).join('');
 
+    const pollFormScript = [
+      '<script>',
+      'function submitPoll(){',
+        'var q=document.getElementById("poll-question").value.trim();',
+        'var o0=document.getElementById("poll-opt0").value.trim();',
+        'var o1=document.getElementById("poll-opt1").value.trim();',
+        'if(!q||!o0||!o1){alert("Question and at least 2 options required.");return;}',
+        'var useChain=document.getElementById("blockchain-check").checked;',
+        'if(!useChain){document.getElementById("poll-form").submit();return;}',
+        'if(typeof window.hive_keychain==="undefined"){alert("Keychain extension not found. Refresh and try again.");return;}',
+        'var o2=document.getElementById("poll-opt2").value.trim();',
+        'var o3=document.getElementById("poll-opt3").value.trim();',
+        'var options=[o0,o1,o2,o3].filter(function(o){return o.length>0;});',
+        'var json=JSON.stringify({app:"qr-cafe",action:"create_poll",question:q,options:options,created:new Date().getTime()});',
+        'setTimeout(function(){',
+          'window.hive_keychain.requestCustomJson("test3333","qr-cafe-poll","Posting",null,json,"QR Cafe Poll",function(r){',
+            'if(r&&r.success){',
+              'document.getElementById("blockchain-val").value="1";',
+              'document.getElementById("poll-form").submit();',
+            '}else{',
+              'alert("Keychain error: "+(r?r.message:"no response"));',
+            '}',
+          '});',
+        '},800);',
+      '}',
+      '</script>',
+    ].join('');
+
     res.send(page('Admin Panel',
       '<h1>Admin Panel</h1><h2>' + VERSION + '</h2>' +
       (msg ? '<div class="' + (isError?'error':'success') + '">' + escape(msg) + '</div>' : '') +
@@ -167,8 +177,6 @@ router.get('/panel', async function(req, res) {
         '</select>' +
         '<button type="submit" class="btn btn-green">Generate QR Code</button>' +
       '</form>' +
-
-      
 
       '<hr><h2 style="text-align:left;margin-bottom:12px">Users (' + allUsers.length + ')</h2>' +
       '<div style="overflow-x:auto"><table><tr><th>Name</th><th>Pts</th><th>Today</th><th>Actions</th></tr>' + userRows + '</table></div>' +
@@ -188,7 +196,7 @@ router.get('/panel', async function(req, res) {
 
       '<hr><h2 style="text-align:left;margin-bottom:12px">Active Polls (' + allPolls.length + '/5)</h2>' +
       '<table><tr><th>Question</th><th>Status</th><th>Votes</th><th>Actions</th></tr>' + pollRows + '</table>' +
-(allPolls.length < 5
+      (allPolls.length < 5
         ? '<form id="poll-form" method="POST" action="' + ADMIN_URL + '/add-poll" style="margin-top:16px">' +
             '<input type="hidden" name="_csrf" value="' + csrf + '"/>' +
             '<input type="hidden" name="blockchain" id="blockchain-val" value="0"/>' +
@@ -203,37 +211,10 @@ router.get('/panel', async function(req, res) {
             '</label>' +
             '<button type="button" class="btn btn-gold" onclick="submitPoll()">Add Poll</button>' +
           '</form>' +
-          '<script>' +
-          'function submitPoll(){' +
-            'alert("submitPoll running");' +
-            'var q=document.getElementById("poll-question").value.trim();' +
-            'var o0=document.getElementById("poll-opt0").value.trim();' +
-            'var o1=document.getElementById("poll-opt1").value.trim();' +
-            'if(!q||!o0||!o1)return alert("Question and at least 2 options required.");' +
-            'var useChain=document.getElementById("blockchain-check").checked;' +
-            'if(!useChain){document.getElementById("poll-form").submit();return;}' +
-'if(typeof window.hive_keychain==="undefined")return alert("Keychain not ready. Refresh and try again.");' +
-            'alert("Keychain keys: "+JSON.stringify(Object.keys(window.hive_keychain)));' +            'var o2=document.getElementById("poll-opt2").value.trim();' +
-            'var o3=document.getElementById("poll-opt3").value.trim();' +
-            'var options=[o0,o1,o2,o3].filter(function(o){return o.length>0;});' +
-            'var ts=new Date().getTime();' +
-            'var json=JSON.stringify({app:"qr-cafe",action:"create_poll",question:q,options:options,created:ts});' +
-            'alert("json ready: "+json);' +
-            'setTimeout(function(){' +
-              'try{' +
-              'window.hive_keychain.requestCustomJson("test3333","qr-cafe-poll","Posting",null,json,"QR Cafe Poll",function(r){' +
-            'if(r.success){' +
-                  'document.getElementById("blockchain-val").value="1";' +
-                  'document.getElementById("poll-form").submit();' +
-                '}else{' +
-                  'alert("Hive error: "+r.message);' +
-                '}' +
-'});' +
-              '}catch(e){alert("Keychain error: "+e.message);}' +
-            '},1500);' +
-                '}' +
-'</script>'
-      : '<p style="color:#f87171;font-size:13px;margin-top:8px">Max 5 polls reached.</p>') +      (allPastPolls.length > 0
+          pollFormScript
+        : '<p style="color:#f87171;font-size:13px;margin-top:8px">Max 5 polls reached.</p>') +
+
+      (allPastPolls.length > 0
         ? '<hr><h2 style="text-align:left;margin-bottom:12px">Past Polls</h2>' +
           '<table><tr><th>Question</th><th>Total</th><th>Results</th></tr>' + pastRows + '</table>'
         : '') +
@@ -274,6 +255,8 @@ router.get('/panel', async function(req, res) {
     res.send(page('Error', '<h1>Error</h1><p>' + escape(e.message) + '</p>'));
   }
 });
+
+// ==================== ADMIN ACTIONS ====================
 
 router.post('/add-name', async function(req, res) {
   if (!checkAdminSession(req, res)) return;
@@ -324,7 +307,7 @@ router.post('/add-poll', async function(req, res) {
   const options  = [req.body.opt0,req.body.opt1,req.body.opt2,req.body.opt3]
     .map(function(o){return (o||'').trim().slice(0,100);}).filter(function(o){return o.length>0;});
   if (!question||options.length<2) return res.redirect(ADMIN_URL + '/panel?err=1&msg=' + encodeURIComponent('Need question and 2+ options'));
-const useBlockchain = req.body.blockchain === '1';
+  const useBlockchain = req.body.blockchain === '1';
   await savePoll(crypto.randomUUID(), { question:question, options:options, votes:options.map(function(){return 0;}), status:'active', blockchain:useBlockchain });
   res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Poll added'));
 });
@@ -347,7 +330,6 @@ router.post('/stop-poll', async function(req, res) {
   if (poll) { await savePastPoll(poll); await deletePoll(req.body.pid); }
   res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Poll stopped and saved'));
 });
-
 
 router.post('/add-mission', async function(req, res) {
   if (!checkAdminSession(req, res)) return;
