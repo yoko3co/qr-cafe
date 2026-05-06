@@ -294,6 +294,7 @@ router.get('/profile', async function(req, res) {
           '</div>';
         }).join('');
 
+    const rcr = user.rcr_balance || 0;
     const lastVisit = user.last_visit
       ? new Date(user.last_visit).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' })
       : 'Never';
@@ -317,6 +318,13 @@ router.get('/profile', async function(req, res) {
         '<p style="font-size:12px;color:#555;margin:12px 0 0;text-align:center">Last visit: ' + lastVisit + '</p>' +
       '</div>' +
 
+'<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:14px;margin-bottom:16px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center">' +
+          '<span style="font-size:13px;font-weight:600;color:#fff">RCR Balance</span>' +
+          '<span style="font-size:11px;color:#555">Krolestwo community coin</span>' +
+        '</div>' +
+        '<div style="font-size:28px;font-weight:700;color:#fbbf24;margin-top:8px">' + rcr.toLocaleString() + ' <span style="font-size:14px;color:#888">RCR</span></div>' +
+      '</div>' +
       '<h2 style="text-align:left;font-size:15px;margin-bottom:8px">Missions</h2>' +
       '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:12px 16px;margin-bottom:16px;text-align:left">' + missionsHtml + '</div>' +
 
