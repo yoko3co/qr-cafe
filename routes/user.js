@@ -211,11 +211,21 @@ router.get('/home', async function(req, res) {
           '</div>'
         : '') +
       '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:14px;margin-bottom:12px;text-align:left">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+          '<span style="font-size:13px;font-weight:600;color:#fff">📅 Upcoming Events</span>' +
+          '<a href="/events" style="font-size:11px;color:#60a5fa;text-decoration:none">See all</a>' +
+        '</div>' +
+        '<p style="font-size:13px;color:#aaa;margin:0 0 10px">Check out what\'s happening at Krolestwo bez Kresu.</p>' +
+        '<a href="https://lu.ma/kbk.events" class="btn btn-gold" style="font-size:13px;padding:8px">View Events on Luma</a>' +
+      '</div>' +
+
+      '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:14px;margin-bottom:12px;text-align:left">' +
         '<div style="margin-bottom:10px">' +
           '<span style="font-size:13px;font-weight:600;color:#fff">Upcoming Tiers</span>' +
         '</div>' +
         comingSoon +
       '</div>' +
+    
 
       navBar()
     ));
