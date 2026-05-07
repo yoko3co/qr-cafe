@@ -162,6 +162,14 @@ router.get('/hallmann', function(req, res) {
   ));
 });
 
+
+
+router.get('/logout', function(req, res) {
+  res.clearCookie('userToken');
+  res.clearCookie('adminToken');
+  res.redirect('/');
+});
+
 router.post('/admin-auth', function(req, res) {
   const username = (req.body.username || '').trim().toLowerCase();
   if (!isAdmin(username)) return res.json({ ok: false, error: 'Access denied.' });
