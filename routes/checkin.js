@@ -14,6 +14,7 @@ const { escape, page, navBar }                          = require('../views/layo
 const limitCheckin = rateLimit({ windowMs: 60 * 1000, max: 10, message: 'Too many requests.' });
 
 const sessions = new Map();
+const SESSION_MAX_SCANS = 10;
 
 router.get('/qr', async function(req, res) {
   const token = req.cookies && req.cookies.adminToken;
@@ -81,7 +82,11 @@ router.get('/hive-checkin', limitCheckin, async function(req, res) {
       await upsertUser(name, { points:0, book:0, games:0, volunteers:0, film:0, last_visit:0, events_today:{}, voted:{}, random_presses:0, random_day:0 });
       user = await getUser(name);
     }
-const withinWindow = user.last_visit && (Date.now() - user.last_visit < DAY);
+s.scans = (s.scans || 0) + 1;
+    if (s.scans > SESSION_MAX_SCANS) {
+      return res.send(page('QR Full', '<h1>QR Full</h1><p>This QR has reached its limit. Please wait for the next QR code to appear.</p>'));
+    }
+    const withinWindow = user.last_visit && (Date.now() - user.last_visit < DAY);
     res.cookie('userToken', name, { httpOnly: true, sameSite: 'strict', maxAge: 12 * 60 * 60 * 1000 });
     const eventsToday  = withinWindow ? (user.events_today || {}) : {};
     const eventType    = s.event || 'none';
