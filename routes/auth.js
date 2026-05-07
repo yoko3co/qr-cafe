@@ -14,14 +14,16 @@ router.get('/events', function(req, res) {
   res.send(page('Events',
     '<h1>Events</h1>' +
     '<h2>Upcoming at Krolestwo</h2>' +
-    '<div style="margin:-20px -32px 0">' +
+    '<div style="margin:-20px -32px 0;position:relative">' +
       '<iframe src="https://lu.ma/embed/calendar/cal-EubuBUyhB1cAGeA/events" ' +
         'style="width:100%;height:600px;border:none;border-radius:0 0 20px 20px;" ' +
         'allowfullscreen ' +
         'aria-hidden="false" ' +
         'tabindex="0">' +
       '</iframe>' +
-    '</div>'
+      '<div style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:10;border-radius:0 0 20px 20px"></div>' +
+    '</div>' +
+    '<div class="info" style="margin-top:16px;font-size:13px">To register for events visit <a href="https://lu.ma/kbk.events" target="_blank" style="color:#fbbf24">lu.ma/kbk.events</a></div>'
   ));
 });
 
