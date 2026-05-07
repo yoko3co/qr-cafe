@@ -71,7 +71,14 @@ async function initDB() {
     `);
 await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS events_today JSONB DEFAULT \'{}\'');
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS legal_version TEXT DEFAULT NULL');
-    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS rcr_balance INTEGER DEFAULT 0');
+await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS rcr_balance INTEGER DEFAULT 0');
+await pool.query('UPDATE polls SET blockchain=false WHERE blockchain=true');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key   TEXT PRIMARY KEY,
+        value TEXT
+      );
+    `);
     await seedRCR();
     for (const name of allowedNames) {
       await pool.query('INSERT INTO allowed_names (name) VALUES ($1) ON CONFLICT DO NOTHING', [name]);
