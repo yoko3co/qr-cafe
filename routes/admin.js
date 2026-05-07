@@ -79,9 +79,10 @@ router.get('/panel', async function(req, res) {
     const allowedNames = await getAllowedNames();
     const allMissions  = await getAllMissions();
 
+    const displayUsers = allUsers.slice(0, 20);
     const userRows = allUsers.length === 0
       ? '<tr><td colspan="4" style="color:#555;text-align:center;padding:16px">No users yet</td></tr>'
-      : allUsers.map(function(u) {
+      : displayUsers.map(function(u) {
           const checkedIn = u.last_visit && Date.now() - u.last_visit < DAY ? 'Yes' : 'No';
           return '<tr>' +
             '<td><strong>' + escape(u.hive_name) + '</strong></td>' +
@@ -93,12 +94,11 @@ router.get('/panel', async function(req, res) {
                 '<input type="hidden" name="key" value="' + escape(u.hive_name) + '"/>' +
                 '<button type="submit" class="btn btn-gold btn-sm">Reset CI</button>' +
               '</form> ' +
-              '<form method="POST" action="' + ADMIN_URL + '/delete-user" style="display:inline">' +
+               '<form method="POST" action="' + ADMIN_URL + '/delete-user" style="display:inline" onsubmit="return confirm(\'Delete ' + escape(u.hive_name) + '? This cannot be undone.\')">' +
                 '<input type="hidden" name="_csrf" value="' + csrf + '"/>' +
                 '<input type="hidden" name="key" value="' + escape(u.hive_name) + '"/>' +
                 '<button type="submit" class="btn btn-red btn-sm">Delete</button>' +
-              '</form>' +
-            '</td></tr>';
+              '</form>' +            '</td></tr>';
         }).join('');
 
     let nameTags = '';
@@ -175,12 +175,23 @@ router.get('/panel', async function(req, res) {
         '<button type="submit" class="btn ' + (bcVote?'btn-red':'btn-green') + '">' + (bcVote?'Turn OFF':'Turn ON') + '</button>' +
       '</form>' +
 
-      '<hr><h2 style="text-align:left;margin-bottom:12px">Users (' + allUsers.length + ')</h2>' +
+'<hr><h2 style="text-align:left;margin-bottom:12px">Users (' + allUsers.length + ')</h2>' +
+      '<p style="text-align:left;font-size:12px;color:#555;margin-bottom:8px">Showing top 20 by points. Download CSV for full list.</p>' +
       '<div style="overflow-x:auto"><table><tr><th>Name</th><th>Pts</th><th>Today</th><th>Actions</th></tr>' + userRows + '</table></div>' +
 
       '<hr><h2 style="text-align:left;margin-bottom:12px">Allowed Names (' + allowedNames.size + ')</h2>' +
       '<p style="text-align:left;font-size:13px;color:#666">Auto-synced from Hive every 5 min</p>' +
-'<details style="text-align:left;margin-bottom:12px"><summary style="cursor:pointer;color:#60a5fa;font-size:14px">Show names (' + allowedNames.size + ')</summary><div style="margin-top:8px;max-height:200px;overflow-y:auto;background:rgba(0,0,0,0.2);border-radius:8px;padding:8px">' + (nameTags||'<p style="color:#555">No names</p>') + '</div></details>' +
+'<details style="text-align:left;margin-bottom:12px"><summary style="cursor:pointer;color:#60a5fa;font-size:14px">Show names (' + allowedNames.size + ')</summary>' +
+        '<input type="text" id="name-search" placeholder="Search names..." oninput="filterNames()" style="margin:8px 0;"/>' +
+        '<div id="names-list" style="max-height:200px;overflow-y:auto;background:rgba(0,0,0,0.2);border-radius:8px;padding:8px">' + (nameTags||'<p style="color:#555">No names</p>') + '</div>' +
+        '<script>' +
+        'function filterNames(){' +
+          'var q=document.getElementById("name-search").value.toLowerCase();' +
+          'var tags=document.getElementById("names-list").querySelectorAll(".tag");' +
+          'tags.forEach(function(t){t.style.display=t.innerText.toLowerCase().includes(q)?"inline-block":"none";});' +
+        '}' +
+        '</script>' +
+      '</details>' +
       '<form method="POST" action="' + ADMIN_URL + '/add-name" style="display:flex;gap:8px">' +
         '<input type="hidden" name="_csrf" value="' + csrf + '"/>' +
         '<input type="text" name="name" placeholder="Add a name..." required style="flex:1;margin:0"/>' +
