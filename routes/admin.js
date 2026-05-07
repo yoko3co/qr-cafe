@@ -180,7 +180,7 @@ router.get('/panel', async function(req, res) {
 
       '<hr><h2 style="text-align:left;margin-bottom:12px">Allowed Names (' + allowedNames.size + ')</h2>' +
       '<p style="text-align:left;font-size:13px;color:#666">Auto-synced from Hive every 5 min</p>' +
-      '<details style="text-align:left;margin-bottom:12px"><summary style="cursor:pointer;color:#60a5fa;font-size:14px">Show names (' + allowedNames.size + ')</summary><div style="margin-top:8px">' + (nameTags||'<p style="color:#555">No names</p>') + '</div></details>' +
+'<details style="text-align:left;margin-bottom:12px"><summary style="cursor:pointer;color:#60a5fa;font-size:14px">Show names (' + allowedNames.size + ')</summary><div style="margin-top:8px;max-height:200px;overflow-y:auto;background:rgba(0,0,0,0.2);border-radius:8px;padding:8px">' + (nameTags||'<p style="color:#555">No names</p>') + '</div></details>' +
       '<form method="POST" action="' + ADMIN_URL + '/add-name" style="display:flex;gap:8px">' +
         '<input type="hidden" name="_csrf" value="' + csrf + '"/>' +
         '<input type="text" name="name" placeholder="Add a name..." required style="flex:1;margin:0"/>' +
