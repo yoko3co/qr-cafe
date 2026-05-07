@@ -79,7 +79,8 @@ await pool.query('UPDATE polls SET blockchain=false WHERE blockchain=true');
         value TEXT
       );
     `);
-    await seedRCR();
+  await seedRCR();
+    const { allowedNames } = require('../allowedNames');
     for (const name of allowedNames) {
       await pool.query('INSERT INTO allowed_names (name) VALUES ($1) ON CONFLICT DO NOTHING', [name]);
     }
