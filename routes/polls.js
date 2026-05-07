@@ -10,7 +10,7 @@ const { escape, page, navBar }                           = require('../views/lay
 
 const limitVote = rateLimit({ windowMs: 60 * 1000, max: 5, message: 'Too many vote attempts.' });
 
-let blockchainVoting = true;
+let blockchainVoting = false;
 
 function getBlockchainVoting()      { return blockchainVoting; }
 function setBlockchainVoting(value) { blockchainVoting = value; }
