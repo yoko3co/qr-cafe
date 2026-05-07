@@ -173,12 +173,11 @@ router.get('/home', async function(req, res) {
       '</div>' +
 
       '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:14px;margin-bottom:12px;text-align:left">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center">' +
           '<span style="font-size:13px;font-weight:600;color:#fff">📅 Events</span>' +
-          '<a href="/events" style="font-size:11px;color:#60a5fa;text-decoration:none">See all</a>' +
+          '<a href="/events" style="font-size:11px;color:#60a5fa;text-decoration:none">See all →</a>' +
         '</div>' +
-        '<p style="font-size:13px;color:#aaa;margin:0 0 10px">What\'s happening at Krolestwo bez Kresu.</p>' +
-        '<a href="https://lu.ma/kbk.events" class="btn btn-gold" style="font-size:13px;padding:8px">View on Luma</a>' +
+        '<p style="font-size:12px;color:#555;margin:6px 0 0">Upcoming at Krolestwo bez Kresu</p>' +
       '</div>' +
 
       (comingSoon ? '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:14px;margin-bottom:12px;text-align:left">' +
