@@ -55,8 +55,9 @@ function page(title, body, wide) {
     '<a href="https://www.facebook.com/herberciarnia" target="_blank" style="margin:0 8px;text-decoration:none;font-size:20px">📘</a>' +
     '</div>' +
 '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.07)">' +
-      '<a href="/hallmann" style="font-size:11px;color:rgba(255,255,255,0.2);text-decoration:none">admin</a>' +
-      '<span style="font-size:10px;color:rgba(255,255,255,0.2)">' + VERSION + ' · <a href="/privacy" style="color:rgba(255,255,255,0.2);text-decoration:none">RODO</a></span>' +
+'<a href="/hallmann" style="font-size:11px;color:rgba(255,255,255,0.2);text-decoration:none">admin</a>' +
+    '<a href="/logout" style="font-size:11px;color:rgba(255,255,255,0.2);text-decoration:none">logout</a>' +
+'<span style="font-size:10px;color:rgba(255,255,255,0.2)">' + VERSION + ' · <a href="/privacy" style="color:rgba(255,255,255,0.2);text-decoration:none">RODO</a></span>' +
       '<span style="font-size:10px;color:rgba(255,255,255,0.2)">Ask at Krolestwo</span>' +
     '</div>';
 }
