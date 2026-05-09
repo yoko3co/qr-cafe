@@ -110,7 +110,7 @@ router.get('/check', function(req, res) {
     (error ? '<div class="error">' + escape(error) + '</div>' : '') +
     '<p>Sign in with Hive Keychain to check in and earn points.</p>' +
     '<div id="status" style="color:#aaa;font-size:13px;margin-bottom:12px">Connecting to Keychain...</div>' +
-    '<button class="btn btn-blue" id="sign-btn" onclick="doSign()" style="display:none">Sign in with Keychain</button>' +
+'<button class="btn btn-blue" id="sign-btn" onclick="doSign()">Sign in with Keychain</button>' +
     '<a href="hive://browser?url=' + encodeURIComponent(BASE_URL + '/check?session=' + req.query.session) + '" class="btn btn-gray" id="open-keychain" style="display:none">Open in Keychain App</a>' +
     '<script>' +
     'function doSign(){' +
@@ -128,8 +128,7 @@ router.get('/check', function(req, res) {
       '});' +
     '}' +
     'if(typeof window.hive_keychain!=="undefined"){' +
-      'document.getElementById("status").innerText="Keychain found - signing...";' +
-      'setTimeout(function(){doSign();},800);' +
+    
     '}else{' +
       'document.getElementById("status").innerText="Keychain not detected.";' +
       'document.getElementById("open-keychain").style.display="block";' +
