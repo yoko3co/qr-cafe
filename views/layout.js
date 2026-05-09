@@ -89,7 +89,8 @@ function navBar() {
     '<a href="/leaderboard" class="btn btn-gray">Leaders</a>' +
     '<a href="/missions" class="btn btn-gold">Missions</a>' +
     '<a href="/polls" class="btn btn-gray">Voting</a>' +
-    '<a href="/events" class="btn btn-gray">Events</a>' +
+    ''<a href="/events" class="btn btn-gray">Events</a>' +
+    '<a href="/drinks" class="btn btn-green">🍺 Drink</a>' +
     '<a href="/profile" class="btn btn-gray">Profile</a>' +
     '</div>';
 }
