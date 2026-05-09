@@ -241,6 +241,8 @@ router.get('/profile', async function(req, res) {
     const tierIdx      = getTier(points);
     const tier         = TIERS[tierIdx];
     const rcr          = user.rcr_balance || 0;
+    const { getRCRTBalance } = require('../services/hive');
+    const rcrt         = await getRCRTBalance(name);
 
     const activeMissions = allMissions.filter(function(m) { return m.status === 'active'; });
     const missionsHtml = activeMissions.length === 0
@@ -278,14 +280,18 @@ router.get('/profile', async function(req, res) {
         '<div style="font-size:20px;font-weight:700;color:' + tier.color + ';margin-bottom:2px">' + escape(user.hive_name) + '</div>' +
         '<div style="font-size:13px;color:#666;margin-bottom:16px">' + tier.name + ' · Last visit: ' + lastVisit + '</div>' +
         // Stats grid
-        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">' +
-          '<div style="background:rgba(251,191,36,0.1);border-radius:10px;padding:10px;text-align:center">' +
+'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">' +
+        '<div style="background:rgba(251,191,36,0.1);border-radius:10px;padding:10px;text-align:center">' +
             '<div style="font-size:22px;font-weight:700;color:#fbbf24">' + points.toFixed(1) + '</div>' +
             '<div style="font-size:10px;color:#666">Points</div>' +
           '</div>' +
           '<div style="background:rgba(96,165,250,0.1);border-radius:10px;padding:10px;text-align:center">' +
             '<div style="font-size:22px;font-weight:700;color:#60a5fa">' + rcr.toLocaleString() + '</div>' +
             '<div style="font-size:10px;color:#666">RCR</div>' +
+          '</div>' +
+          '<div style="background:rgba(52,211,153,0.1);border-radius:10px;padding:10px;text-align:center">' +
+            '<div style="font-size:22px;font-weight:700;color:#34d399">' + rcrt.toFixed(2) + '</div>' +
+            '<div style="font-size:10px;color:#666">RCRT</div>' +
           '</div>' +
           '<div style="background:rgba(74,222,128,0.1);border-radius:10px;padding:10px;text-align:center">' +
             '<div style="font-size:22px;font-weight:700;color:#4ade80">' + doneIds.size + '/' + activeMissions.length + '</div>' +
