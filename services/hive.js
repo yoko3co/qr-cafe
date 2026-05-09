@@ -86,4 +86,32 @@ function startHiveSync() {
   setInterval(syncRCR, 10 * 60 * 1000);
 }
 
-module.exports = { fetchAllowedNames, startHiveSync, syncRCR };
+async function getRCRTBalance(username) {
+  try {
+    const res = await fetch('https://api.hive-engine.com/rpc/contracts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'find',
+        params: {
+          contract: 'tokens',
+          table: 'balances',
+          query: { account: username, symbol: 'RCRT' },
+          limit: 1,
+        },
+      }),
+    });
+    const data = await res.json();
+    if (data.result && data.result.length > 0) {
+      return parseFloat(data.result[0].balance) || 0;
+    }
+    return 0;
+  } catch (e) {
+    console.log('RCRT fetch error:', e.message);
+    return 0;
+  }
+}
+
+module.exports = { fetchAllowedNames, startHiveSync, syncRCR, getRCRTBalance };
