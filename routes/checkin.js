@@ -109,14 +109,30 @@ router.get('/check', function(req, res) {
     '<h1>QR Cafe</h1><h2>Check In</h2>' +
     (error ? '<div class="error">' + escape(error) + '</div>' : '') +
     '<p>Sign in with Hive Keychain to check in and earn points.</p>' +
-    '<a href="hive://browser?url=' + encodeURIComponent(BASE_URL + '/check?session=' + req.query.session) + '" class="btn btn-blue" id="open-keychain">Open in Keychain App</a>' +
+    '<div id="status" style="color:#aaa;font-size:13px;margin-bottom:12px">Connecting to Keychain...</div>' +
+    '<button class="btn btn-blue" id="sign-btn" onclick="doSign()" style="display:none">Sign in with Keychain</button>' +
+    '<a href="hive://browser?url=' + encodeURIComponent(BASE_URL + '/check?session=' + req.query.session) + '" class="btn btn-gray" id="open-keychain" style="display:none">Open in Keychain App</a>' +
     '<script>' +
-    'if(typeof window.hive_keychain!=="undefined"){' +
-      'document.getElementById("open-keychain").style.display="none";' +
+    'function doSign(){' +
+      'document.getElementById("status").innerText="Waiting for Keychain...";' +
+      'document.getElementById("sign-btn").style.display="none";' +
       'window.hive_keychain.requestSignBuffer(null,"qrcafe-checkin-' + req.query.session + '","Posting",function(r){' +
-        'if(r.success){window.location.href="/hive-checkin?session=' + req.query.session + '&user="+encodeURIComponent(r.data.username);}' +
-        'else{document.getElementById("open-keychain").style.display="block";alert("Error: "+r.message);}' +
+        'if(r.success){' +
+          'document.getElementById("status").innerText="Signing in...";' +
+          'window.location.href="/hive-checkin?session=' + req.query.session + '&user="+encodeURIComponent(r.data.username);' +
+        '}else{' +
+          'document.getElementById("status").innerText="Error: "+r.message;' +
+          'document.getElementById("sign-btn").style.display="block";' +
+          'document.getElementById("sign-btn").innerText="Try again";' +
+        '}' +
       '});' +
+    '}' +
+    'if(typeof window.hive_keychain!=="undefined"){' +
+      'document.getElementById("status").innerText="Keychain found - signing...";' +
+      'setTimeout(function(){doSign();},800);' +
+    '}else{' +
+      'document.getElementById("status").innerText="Keychain not detected.";' +
+      'document.getElementById("open-keychain").style.display="block";' +
     '}' +
     '</script>'
   ));
