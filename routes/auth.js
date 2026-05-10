@@ -162,43 +162,6 @@ router.get('/hallmann', function(req, res) {
   ));
 });
 
-router.get('/drinks', function(req, res) {
-  const name = req.cookies && req.cookies.userToken;
-  if (!name) return res.redirect('/');
-  const { page, navBar } = require('../views/layout');
-  res.send(page('Buy a Drink',
-    '<h1>Buy a Drink</h1>' +
-    '<h2>Support Krolestwo with RCRT</h2>' +
-    '<div class="section-card" style="text-align:left;margin-bottom:16px">' +
-      '<div class="row-item"><span>Drink</span><span style="color:#fbbf24;font-weight:700">4 RCRT</span></div>' +
-      '<div class="row-item"><span>Token</span><span style="color:#34d399">RCRT</span></div>' +
-      '<div class="row-item"><span>Sends to</span><span style="color:#aaa">rcr account</span></div>' +
-    '</div>' +
-    '<div id="status" style="font-size:13px;color:#aaa;margin-bottom:12px"></div>' +
-    '<button class="btn btn-gold" id="buy-btn" onclick="buyDrink()">Buy a drink - 4 RCRT</button>' +
-    '<div id="confirm" style="display:none">' +
-      '<div class="success fade-up" style="margin-top:16px">Cheers! Your drink has been sent. Show this to staff!</div>' +
-    '</div>' +
-    navBar() +
-    '<script>' +
-    'function buyDrink(){' +
-      'if(typeof window.hive_keychain==="undefined"){alert("Open this page in Keychain browser.");return;}' +
-      'document.getElementById("buy-btn").disabled=true;' +
-      'document.getElementById("status").innerText="Waiting for Keychain...";' +
-      'window.hive_keychain.requestSendToken("' + name + '","rcr","4","RCRT","drink",function(r){' +
-        'if(r.success){' +
-          'document.getElementById("status").innerText="";' +
-          'document.getElementById("confirm").style.display="block";' +
-          'document.getElementById("buy-btn").style.display="none";' +
-        '}else{' +
-          'document.getElementById("status").innerText="Error: "+r.message;' +
-          'document.getElementById("buy-btn").disabled=false;' +
-        '}' +
-      '});' +
-    '}' +
-    '</script>'
-  ));
-});
 
 router.get('/drinks', function(req, res) {
   const name = req.cookies && req.cookies.userToken;
@@ -212,39 +175,10 @@ router.get('/drinks', function(req, res) {
       '<div class="row-item"><span>Token</span><span style="color:#34d399">RCRT</span></div>' +
       '<div class="row-item"><span>Sends to</span><span style="color:#aaa">rcr account</span></div>' +
     '</div>' +
-    '<div id="status" style="font-size:13px;color:#aaa;margin-bottom:12px"></div>' +
-    '<button class="btn btn-gold" id="buy-btn" onclick="buyDrink()">Buy a drink — 4 RCRT</button>' +
-    '<div id="confirm" style="display:none">' +
-      '<div class="success fade-up" style="margin-top:16px">🍺 Cheers! Your drink has been sent. Show this to staff!</div>' +
-    '</div>' +
-    navBar() +
-    '<script>' +
-    'function buyDrink(){' +
-      'if(typeof window.hive_keychain==="undefined"){' +
-        'alert("Open this page in Keychain browser to buy a drink.");return;' +
-      '}' +
-      'document.getElementById("buy-btn").disabled=true;' +
-      'document.getElementById("status").innerText="Waiting for Keychain...";' +
-      'window.hive_keychain.requestSendToken(' +
-        '"' + name + '",' +
-        '"rcr",' +
-        '"4",' +
-        '"RCRT",' +
-        '"drink",' +
-        'function(r){' +
-          'if(r.success){' +
-            'document.getElementById("status").innerText="";' +
-            'document.getElementById("confirm").style.display="block";' +
-            'document.getElementById("buy-btn").style.display="none";' +
-          '}else{' +
-            'document.getElementById("status").innerText="Error: "+r.message;' +
-            'document.getElementById("buy-btn").disabled=false;' +
-          '}' +
-        '}' +
-      ');' +
-    '}' +
-    '</script>'
-  ));
+    '<button class="btn btn-gray" disabled style="opacity:0.4;cursor:not-allowed">Buy a drink - 4 RCRT</button>' +
+    '<p style="font-size:12px;color:#555;margin-top:8px">RCRT payments coming soon</p>' +
+    navBar()
+  ));;
 });
 
 router.get('/logout', function(req, res) {
