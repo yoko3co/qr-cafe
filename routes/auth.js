@@ -175,8 +175,26 @@ router.get('/drinks', function(req, res) {
       '<div class="row-item"><span>Token</span><span style="color:#34d399">RCRT</span></div>' +
       '<div class="row-item"><span>Sends to</span><span style="color:#aaa">rcr account</span></div>' +
     '</div>' +
-    '<button class="btn btn-gray" disabled style="opacity:0.4;cursor:not-allowed">Buy a drink - 4 RCRT</button>' +
-    '<p style="font-size:12px;color:#555;margin-top:8px">RCRT payments coming soon</p>' +
+    '<div id="status" style="font-size:13px;color:#aaa;margin-bottom:12px"></div>' +
+    '<button class="btn btn-gold" id="buy-btn" onclick="buyDrink()">Buy a drink - 0.001 HIVE</button>' +
+    '<div id="confirm" style="display:none;margin-top:16px"><div class="success">Cheers! Show this screen to staff!</div></div>' +
+    '<script>' +
+    'function buyDrink(){' +
+      'if(typeof window.hive_keychain==="undefined"){alert("Open in Keychain browser.");return;}' +
+      'document.getElementById("buy-btn").disabled=true;' +
+      'document.getElementById("status").innerText="Waiting for Keychain...";' +
+      'window.hive_keychain.requestTransfer("' + name + '","rcr","0.001","drink","HIVE",function(r){' +
+        'if(r.success){' +
+          'document.getElementById("confirm").style.display="block";' +
+          'document.getElementById("buy-btn").style.display="none";' +
+          'document.getElementById("status").innerText="";' +
+        '}else{' +
+          'document.getElementById("status").innerText="Error: "+r.message;' +
+          'document.getElementById("buy-btn").disabled=false;' +
+        '}' +
+      '});' +
+    '}' +
+    '</script>' +
     navBar()
   ));;
 });
