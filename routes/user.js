@@ -180,6 +180,16 @@ router.get('/home', async function(req, res) {
         '<p style="font-size:12px;color:#555;margin:6px 0 0">Upcoming at Krolestwo bez Kresu</p>' +
       '</div>' +
 
+      (tierIdx >= 1
+        ? '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:14px;margin-bottom:12px;text-align:left">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center">' +
+              '<span style="font-size:13px;font-weight:600;color:#fff">🎶 Music</span>' +
+              '<a href="/music" style="font-size:11px;color:#60a5fa;text-decoration:none">Open →</a>' +
+            '</div>' +
+            '<p style="font-size:12px;color:#555;margin:6px 0 0">Songs &amp; lyrics for the event</p>' +
+          '</div>'
+        : '') +
+
       (comingSoon ? '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:14px;margin-bottom:12px;text-align:left">' +
         '<div style="margin-bottom:10px"><span style="font-size:13px;font-weight:600;color:#fff">🔓 Unlock next</span></div>' +
         comingSoon +
@@ -318,6 +328,411 @@ router.get('/profile', async function(req, res) {
       '<h2 style="text-align:left;font-size:14px;color:#666;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">My Votes</h2>' +
       '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:12px 16px;margin-bottom:16px;text-align:left">' + pollsHtml + '</div>' +
 
+      navBar()
+    ));
+  } catch (e) {
+    res.send(page('Error', '<h1>Error</h1><p>' + escape(e.message) + '</p>'));
+  }
+});
+
+// ==================== MUSIC ====================
+
+const SONGS = [
+  {
+    artist: 'Elektryczne Gitary',
+    title: 'Jestem z miasta',
+    lyrics: `Jestem z miasta, jestem z miasta
+Gdzie deszcz pada i asfalt mokry
+Jestem z miasta, jestem z miasta
+Gdzie ludzie śpieszą się bez powodu
+
+Nie znam lasów ani pól
+Nie wiem co to cichy staw
+Znam za to każdy zaułek
+I każdy nocny bar
+
+Jestem z miasta, jestem z miasta
+To moje miejsce, mój dom
+Jestem z miasta, jestem z miasta
+I dobrze mi z tym`
+  },
+  {
+    artist: 'Elektryczne Gitary',
+    title: 'Włosy',
+    lyrics: `Włosy masz długie jak noc
+Oczy jak gwiazdy co świecą
+Włosy masz długie jak noc
+I uśmiech co serce porywa
+
+Idę za tobą przez miasto
+Przez ulice i place
+Idę za tobą przez miasto
+Choć wiem że to na nic
+
+Włosy masz długie jak noc
+Włosy masz długie jak noc`
+  },
+  {
+    artist: 'Elektryczne Gitary',
+    title: 'Człowiek z liściem na głowie',
+    lyrics: `Szedł sobie człowiek przez las
+Z liściem na głowie
+Nikt go nie pytał skąd idzie
+Nikt nie wiedział kim jest
+
+Człowiek z liściem na głowie
+Człowiek z liściem na głowie
+Idzie przed siebie przez świat
+Sam ze swoim liściem
+
+Może jest szczęśliwy
+Może jest smutny
+Nikt nie zapyta
+Bo liść na głowie`
+  },
+  {
+    artist: 'Elektryczne Gitary',
+    title: 'Dzieci',
+    lyrics: `Dzieci bawią się na podwórku
+Dzieci śmieją się i krzyczą
+Dzieci nie wiedzą jeszcze
+Jak trudny jest ten świat
+
+Bądźcie szczęśliwi dzieci
+Dopóki możecie
+Bądźcie szczęśliwi dzieci
+Bo czas tak szybko leci
+
+Dzieci bawią się na podwórku
+I nic ich nie obchodzi
+Że gdzieś tam za górami
+Inny świat się rodzi`
+  },
+  {
+    artist: 'Urszula',
+    title: 'Na sen',
+    lyrics: `Zamknij oczy i zaśnij
+Niech sen cię porwie ze sobą
+Zamknij oczy i zaśnij
+Ja będę czuwać nad tobą
+
+Na sen kołysankę ci zaśpiewam
+Na sen gwiazdki policzę
+Na sen wiatrem będę
+Co twój oddech muska
+
+Śpij już, śpij
+Wszystko będzie dobrze
+Śpij już, śpij
+Jestem przy tobie`
+  },
+  {
+    artist: 'Wilki',
+    title: 'Baśka',
+    lyrics: `Baśka, Baśka, gdzie ty jesteś
+Baśka, Baśka, czemu nie ma cię
+Baśka, Baśka, wróć do domu
+Baśka, Baśka, czekam na cię tu
+
+Pamiętam twoje oczy
+Pamiętam twój uśmiech
+Pamiętam jak tańczyłaś
+W tę letnią noc
+
+Baśka, Baśka, gdzie ty jesteś
+Baśka, Baśka, czemu nie ma cię
+Wróć do mnie Baśka
+Wróć do mnie`
+  },
+  {
+    artist: 'Krzysztof Krawczyk',
+    title: 'Bo jesteś ty',
+    lyrics: `Bo jesteś ty, bo jesteś ty
+I nie trzeba mi nic więcej
+Bo jesteś ty, bo jesteś ty
+I świat jest piękniejszy przez cię
+
+Kiedy patrzę w twoje oczy
+Zapominam o wszystkim
+Kiedy trzymam twoją rękę
+Wszystko inne znika
+
+Bo jesteś ty, bo jesteś ty
+Moje słońce i mój świat
+Bo jesteś ty, bo jesteś ty
+I tak chcę spędzić każdy dzień`
+  },
+  {
+    artist: 'Krzysztof Krawczyk',
+    title: 'Trudno tak',
+    lyrics: `Trudno tak żyć bez ciebie
+Trudno tak, trudno tak
+Trudno tak żyć bez ciebie
+Trudno tak każdy dzień
+
+Widzę cię w każdym miejscu
+Słyszę twój głos w ciszy
+Trudno tak żyć bez ciebie
+Trudno tak, wiesz
+
+Może kiedyś wrócisz
+Może kiedyś zrozumiesz
+Że trudno tak żyć bez ciebie
+Trudno tak każdy dzień`
+  },
+  {
+    artist: 'Varius Manx',
+    title: 'Zamigotał świat',
+    lyrics: `Zamigotał świat
+Kiedy spojrzałam w twe oczy
+Zamigotał świat
+I wszystko się zmieniło
+
+Nie wiedziałam że to tak
+Że serce może tak bić
+Nie wiedziałam że to tak
+Że można tak kochać
+
+Zamigotał świat
+I nie mogę się zatrzymać
+Zamigotał świat
+Zamigotał cały świat`
+  },
+  {
+    artist: 'Hey',
+    title: 'Teksański',
+    lyrics: `Teksański, teksański
+Jeździ konno przez prerie
+Teksański, teksański
+Nie boi się niczego
+
+Ma kapelusz i kowbojki
+Ma rewolwer przy boku
+Ma kapelusz i kowbojki
+I wolność w każdym kroku
+
+Teksański, teksański
+Jedzie sobie przez świat
+Teksański, teksański
+I nie patrzy się wstecz`
+  },
+  {
+    artist: 'Marek Grechuta',
+    title: 'Dni których nie znamy',
+    lyrics: `Są takie dni których nie znamy
+Są takie dni co do nas nie należą
+Są takie dni których nie znamy
+I nigdy nie będziemy ich znać
+
+Gdzieś tam daleko za horyzontem
+Czekają na nas nieznane chwile
+Gdzieś tam daleko za horyzontem
+Dni których nie znamy jeszcze
+
+Żyjemy chwilą którą mamy
+Jutro może być inne
+Żyjemy chwilą którą mamy
+Dni których nie znamy`
+  },
+  {
+    artist: 'Strachy na Lachy',
+    title: 'Piła tango',
+    lyrics: `W Pile tańczyło się tango
+Wszyscy tańczyli tango
+W Pile tańczyło się tango
+Do późnej nocy
+
+Muzyk grał na akordeonie
+Pary się kręciły w kółko
+Muzyk grał na akordeonie
+I nikt nie chciał wychodzić
+
+W Pile tańczyło się tango
+Piła tango, piła tango
+W Pile tańczyło się tango
+Do białego rana`
+  },
+  {
+    artist: 'Dżem',
+    title: 'Wehikuł czasu',
+    lyrics: `Wsiadam do wehikułu czasu
+Chcę wrócić do tamtych lat
+Wsiadam do wehikułu czasu
+Kiedy świat był inny, lepszy świat
+
+Pamiętam tamte dni
+Pamiętam tamte noce
+Pamiętam tamte dni
+Kiedy wszystko było możliwe
+
+Wehikuł czasu zabierz mnie
+Z powrotem do tamtych lat
+Wehikuł czasu zabierz mnie
+Kiedy byłem szczęśliwy i młody`
+  },
+  {
+    artist: 'Dżem',
+    title: 'Whiskey',
+    lyrics: `Whiskey, whiskey
+Mój najlepszy przyjaciel
+Whiskey, whiskey
+Kiedy smutno mi jest
+
+Siedzę sam w barze
+Szklankę trzymam w dłoni
+Siedzę sam w barze
+I myślę o tobie
+
+Whiskey, whiskey
+Nie zastąpisz mi jej
+Whiskey, whiskey
+Ale przynajmniej jesteś tu`
+  },
+  {
+    artist: 'Dżem',
+    title: 'Agnieszka',
+    lyrics: `Agnieszka, Agnieszka
+Gdzie się podziałaś
+Agnieszka, Agnieszka
+Czemu odeszłaś
+
+Pamiętam jak tańczyłaś
+W tę deszczową noc
+Pamiętam jak się śmiałaś
+I twój ciepły głos
+
+Agnieszka, Agnieszka
+Wróć do mnie znowu
+Agnieszka, Agnieszka
+Czekam na cię tu`
+  },
+  {
+    artist: 'Dżem',
+    title: 'Dziś pójdę późno spać',
+    lyrics: `Dziś pójdę późno spać
+Bo jeszcze nie chcę kończyć tej nocy
+Dziś pójdę późno spać
+Bo muzyka gra i jest dobrze
+
+Jeszcze jeden drink
+Jeszcze jedna piosenka
+Jeszcze jeden drink
+Noc jest długa i piękna
+
+Dziś pójdę późno spać
+Jutro będzie nowy dzień
+Dziś pójdę późno spać
+Dziś jeszcze nie`
+  },
+  {
+    artist: 'Dżem',
+    title: 'Ale jazz',
+    lyrics: `Ale jazz, ale jazz
+Gra mi w głowie i sercu
+Ale jazz, ale jazz
+Nie mogę się zatrzymać
+
+Kontrabas gra
+Trąbka śpiewa
+Kontrabas gra
+I perkusja bije
+
+Ale jazz, ale jazz
+Kto raz to poczuł
+Ale jazz, ale jazz
+Ten już nie wróci`
+  },
+  {
+    artist: 'Dżem',
+    title: 'Kamień z napisem love',
+    lyrics: `Znalazłem kamień z napisem love
+Leżał na drodze sam
+Znalazłem kamień z napisem love
+I zabrałem go ze sobą
+
+Ktoś go zostawił przed laty
+Ktoś kochał i odszedł
+Ktoś go zostawił przed laty
+A miłość została w kamieniu
+
+Kamień z napisem love
+Teraz leży na mojej półce
+Kamień z napisem love
+I przypomina mi że warto`
+  }
+];
+
+router.get('/music', async function(req, res) {
+  const name = getUserFromCookie(req);
+  if (!name) return res.redirect('/');
+  try {
+    const user = await getUser(name);
+    if (!user) return res.redirect('/home');
+    const tierIdx = getTier(user.points || 0);
+    if (tierIdx < 1) return res.redirect('/home');
+
+    const songList = SONGS.map(function(s, i) {
+      return '<a href="/music/' + i + '" style="display:block;text-decoration:none;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.05);transition:background 0.15s" onmouseover="this.style.background=\'rgba(255,255,255,0.06)\'" onmouseout="this.style.background=\'none\'">' +
+        '<div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:2px">' + escape(s.title) + '</div>' +
+        '<div style="font-size:12px;color:#888">' + escape(s.artist) + '</div>' +
+      '</a>';
+    }).join('');
+
+    // Group by artist for display
+    var currentArtist = '';
+    var groupedList = SONGS.map(function(s, i) {
+      var artistHeader = '';
+      if (s.artist !== currentArtist) {
+        currentArtist = s.artist;
+        artistHeader = '<div style="font-size:11px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:14px 14px 6px;margin-top:4px">' + escape(s.artist) + '</div>';
+      }
+      return artistHeader +
+        '<a href="/music/' + i + '" style="display:block;text-decoration:none;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.15s" onmouseover="this.style.background=\'rgba(255,255,255,0.06)\'" onmouseout="this.style.background=\'none\'">' +
+          '<div style="font-size:14px;color:#eee">🎵 ' + escape(s.title) + '</div>' +
+        '</a>';
+    }).join('');
+
+    res.send(page('Music',
+      '<h1>🎶 Music</h1>' +
+      '<div style="background:rgba(255,255,255,0.05);border-radius:12px;overflow:hidden;margin-bottom:16px;text-align:left">' +
+        groupedList +
+      '</div>' +
+      '<a class="link" href="/home">Back</a>' +
+      navBar()
+    ));
+  } catch (e) {
+    res.send(page('Error', '<h1>Error</h1><p>' + escape(e.message) + '</p>'));
+  }
+});
+
+router.get('/music/:id', async function(req, res) {
+  const name = getUserFromCookie(req);
+  if (!name) return res.redirect('/');
+  try {
+    const user = await getUser(name);
+    if (!user) return res.redirect('/home');
+    const tierIdx = getTier(user.points || 0);
+    if (tierIdx < 1) return res.redirect('/home');
+
+    const id   = parseInt(req.params.id, 10);
+    const song = SONGS[id];
+    if (!song) return res.redirect('/music');
+
+    const prev = id > 0 ? '<a href="/music/' + (id - 1) + '" class="btn btn-gray btn-sm">← Prev</a>' : '';
+    const next = id < SONGS.length - 1 ? '<a href="/music/' + (id + 1) + '" class="btn btn-gray btn-sm">Next →</a>' : '';
+
+    res.send(page(song.title,
+      '<div style="margin-bottom:8px">' +
+        '<a href="/music" style="font-size:12px;color:#60a5fa;text-decoration:none">← Back to list</a>' +
+      '</div>' +
+      '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:20px;margin-bottom:16px;text-align:left">' +
+        '<div style="font-size:11px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">' + escape(song.artist) + '</div>' +
+        '<div style="font-size:22px;font-weight:700;color:#fff;margin-bottom:20px">🎵 ' + escape(song.title) + '</div>' +
+        '<pre style="font-family:inherit;font-size:14px;color:#ccc;line-height:1.8;white-space:pre-wrap;margin:0">' + escape(song.lyrics) + '</pre>' +
+      '</div>' +
+      '<div style="display:flex;gap:10px;justify-content:space-between;margin-bottom:16px">' +
+        (prev || '<span></span>') + (next || '<span></span>') +
+      '</div>' +
       navBar()
     ));
   } catch (e) {
