@@ -180,7 +180,7 @@ router.get('/home', async function(req, res) {
         '<p style="font-size:12px;color:#555;margin:6px 0 0">Upcoming at Krolestwo bez Kresu</p>' +
       '</div>' +
 
-      (tierIdx >= 1
+      (true
         ? '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:14px;margin-bottom:12px;text-align:left">' +
             '<div style="display:flex;justify-content:space-between;align-items:center">' +
               '<span style="font-size:13px;font-weight:600;color:#fff">🎶 Music</span>' +
