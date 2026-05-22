@@ -66,7 +66,7 @@ router.get('/home', async function(req, res) {
 
     // Who checked in today (Tier 2+)
     let checkinSection = '';
-    if (tierIdx >= 1) {
+    if (true) {
       const today    = Date.now() - DAY;
       const r        = await pool.query('SELECT hive_name, last_visit FROM users WHERE last_visit > $1 ORDER BY last_visit DESC LIMIT 10', [today]);
       const checkins = r.rows;
@@ -669,7 +669,7 @@ router.get('/music', async function(req, res) {
     const user = await getUser(name);
     if (!user) return res.redirect('/home');
     const tierIdx = getTier(user.points || 0);
-    if (tierIdx < 1) return res.redirect('/home');
+    if (!name) return res.redirect('/');
 
     const songList = SONGS.map(function(s, i) {
       return '<a href="/music/' + i + '" style="display:block;text-decoration:none;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.05);transition:background 0.15s" onmouseover="this.style.background=\'rgba(255,255,255,0.06)\'" onmouseout="this.style.background=\'none\'">' +
@@ -712,7 +712,7 @@ router.get('/music/:id', async function(req, res) {
     const user = await getUser(name);
     if (!user) return res.redirect('/home');
     const tierIdx = getTier(user.points || 0);
-    if (tierIdx < 1) return res.redirect('/home');
+    if (!name) return res.redirect('/');
 
     const id   = parseInt(req.params.id, 10);
     const song = SONGS[id];
