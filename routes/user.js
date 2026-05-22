@@ -342,19 +342,30 @@ const SONGS = [
     artist: 'Elektryczne Gitary',
     title: 'Jestem z miasta',
     lyrics: `Jestem z miasta, jestem z miasta
-Gdzie deszcz pada i asfalt mokry
-Jestem z miasta, jestem z miasta
-Gdzie ludzie śpieszą się bez powodu
+Jestem z miasta, to widać
+Jestem z miasta, to słychać
+Jestem z miasta, to widać słychać i czuć (jeszcze raz)
 
-Nie znam lasów ani pól
-Nie wiem co to cichy staw
-Znam za to każdy zaułek
-I każdy nocny bar
+W cieniu sufitów, w świetle przewodów
+W objęciach biurek w krokach obchodów
+Rodzą się rzeczy jasne i ciemne
+Ja nie rozróżniam ich, nie ufam, więc...
 
-Jestem z miasta, jestem z miasta
-To moje miejsce, mój dom
-Jestem z miasta, jestem z miasta
-I dobrze mi z tym`
+Ref. Jestem z miasta...
+
+W rytmie zachodów, w słowach kamieni
+W spojrzeniu ptaków, w mowie przestrzeni
+Rodzi się spokój - mówią, po jednym roku
+Leczą się myśli, mnie to nie bierze
+
+Ref. Jestem z miasta...
+
+W świetle przewodów, w cieniu sufitów
+W wietrze oddechów, w błocie napisów
+Rodzą się szajby małe i biedne
+Karmię się nimi i karmić się będę
+
+Ref. Jestem z miasta...`
   },
   {
     artist: 'Elektryczne Gitary',
@@ -376,289 +387,840 @@ Włosy masz długie jak noc`
     artist: 'Elektryczne Gitary',
     title: 'Człowiek z liściem na głowie',
     lyrics: `Szedł sobie człowiek przez las
-Z liściem na głowie
-Nikt go nie pytał skąd idzie
-Nikt nie wiedział kim jest
+Wsiadł do autobusu człowiek z liściem na głowie
+Nikt go nie poratuje nikt mu nic nie powie
+Tylko się każdy gapi
+Tylko się każdy gapi i nic
 
-Człowiek z liściem na głowie
-Człowiek z liściem na głowie
-Idzie przed siebie przez świat
-Sam ze swoim liściem
+Siedzi w autobusie człowiek z liściem na głowie
+O liściu w swych rzadkich włosach
+Nieprędko się dowie
+Tylko się w okno gapi
+Tylko sie w okno gapi i nic
 
-Może jest szczęśliwy
-Może jest smutny
-Nikt nie zapyta
-Bo liść na głowie`
+Uważaj to nie chmury
+To pałac kultury
+Liście lecą z drzew
+Liście lecą z drzew
+
+I tak siedzi w autobusie człowiek z liściem na głowie
+Nikt go nie poratuje nikt mu nic nie powie
+Tylko się każdy gapi
+Tylko się każdy gapi i nic
+
+Wsiadł drugi podobny
+Nad człowiekiem się zlitował
+Tamten się pogłaskał w główkę liścia sobie schował
+Bo ja mówi jestem z lasu
+Bo ja mówi jestem z lasu i już
+
+Uważaj to nie chmury
+To pałac kultury
+Liście lecą z drzew
+Liście lecą z drzew
+
+Uważaj to nie chmury
+To pałac kultury
+Liście lecą z drzew
+Liście lecą z drzew`
   },
   {
     artist: 'Elektryczne Gitary',
     title: 'Dzieci',
     lyrics: `Dzieci bawią się na podwórku
-Dzieci śmieją się i krzyczą
-Dzieci nie wiedzą jeszcze
-Jak trudny jest ten świat
+Dzieci wesoło wybiegły ze szkoły
+Zapaliły papierosy, wyciągnęły flaszki
+Chodnik zapluły, ludzi przepędziły
+Siedzą na ławeczkach i ryczą do siebie
 
-Bądźcie szczęśliwi dzieci
-Dopóki możecie
-Bądźcie szczęśliwi dzieci
-Bo czas tak szybko leci
+Wszyscy mamy źle w głowach, że żyjemy
+Hej, hej, la, la, la, la, hej, hej, hej, hej
+Wszyscy mamy źle w głowach, że żyjemy
+Hej, hej, la, la, la, la, hej, hej, hej, hej
 
-Dzieci bawią się na podwórku
-I nic ich nie obchodzi
-Że gdzieś tam za górami
-Inny świat się rodzi`
+Tony papieru, tomy analiz
+Genialne myśli, tłumy na sali
+Godziny modlitw, lata nauki
+Przysięgi, plany, podpisy, druki
+
+Wszyscy mamy źle w głowach, że żyjemy
+Hej, hej, la, la, la, la, hej, hej, hej, hej
+Wszyscy mamy źle w głowach, że żyjemy
+Hej, hej, la, la, la, la, hej, hej, hej, hej
+
+Wzorce, przykłady, szlachetne zabiegi
+Łańcuchy dłoni, zwarte szeregi
+Warstwy tradycji, wieki kultury
+Tydzień dobroci, ręce do góry
+
+Wszyscy mamy źle w głowach, że żyjemy
+Hej, hej, la, la, la, la, hej, hej, hej, hej
+Wszyscy mamy źle w głowach, że żyjemy
+Hej, hej, la, la, la, la, hej, hej, hej, hej
+
+Dzieci wesoło wybiegły ze szkoły
+Zapaliły papierosy, wyciągnęły flaszki
+Chodnik zapluły, ludzi przepędziły
+Siedzą na ławeczkach i ryczą do siebie
+
+Wszyscy mamy źle w głowach, że żyjemy
+Hej, hej, la, la, la, la, hej, hej, hej, hej
+Wszyscy mamy źle w głowach, że żyjemy
+Hej, hej, la, la, la, la, hej, hej, hej, hej
+
+Wszyscy mamy źle w głowach, że żyjemy
+Hej, hej, la, la, la, la, hej, hej, hej, hej
+Wszyscy mamy źle w głowach, że żyjemy
+Hej, hej, la, la, la, la, hej, hej, hej, hej`
   },
   {
     artist: 'Urszula',
     title: 'Na sen',
     lyrics: `Zamknij oczy i zaśnij
-Niech sen cię porwie ze sobą
-Zamknij oczy i zaśnij
-Ja będę czuwać nad tobą
+1. Na sen
+Nigdy już nie wezmę nic
+Ja to wiem
+Odejść łatwiej jest niż żyć
+I na morzu naszych wspólnych lat
+Liczę wyspy pełne smutnych dat
+Aksamitne rafy
+Gdy byliśmy tak szczęśliwi
+Widzę nasze drzewa
+Które wygiął czas
+Ja znam
+Naszą miłość pełną burz
+Czasem tnie
+W obie strony tak jak nóż
+I głęboko rani ciebie mnie
+Razem ciężko żyć - osobno źle
+Chyba zawsze już
+Tak będziemy pogmatwani
+Wspólny adres nasze dzieci sny
+Więc pomóż mi odnaleźć tamte dni
 
-Na sen kołysankę ci zaśpiewam
-Na sen gwiazdki policzę
-Na sen wiatrem będę
-Co twój oddech muska
+Ref: Pomóż mi odnaleźć
+Nasze najpiękniejsze dni
+Zaczaruj moje serce
+Zostaw mnie bez tchu raz jeszcze
+Pomóż mi kochać
+Wyryj w moim sercu siebie
+Zrób to przecież wiesz
+To nie boli mnie.
 
-Śpij już, śpij
-Wszystko będzie dobrze
-Śpij już, śpij
-Jestem przy tobie`
+2. Dziwne
+Jak mi mało trzeba snu
+Słyszę znów
+Mego życia słaby puls
+Miłość jest jak deszcz
+Który spływa po mnie aż do stóp
+Sama obok siebie
+Jestem znowu tu
+
+Ref: Pomóż mi odnaleźć
+Nasze najpiękniejsze dni
+Zaczaruj moje serce
+Zostaw mnie bez tchu raz jeszcze
+Pomóż mi kochać
+Wyryj w moim sercu siebie
+Zrób to przecież wiesz
+To nie boli mnie.
+
+3. Na sen
+Lubię dotyk twoich rąk
+Boję się
+Kiedy w snach odchodzisz stąd
+Dokąd płyniesz
+Proszę powiedz mi
+O czym śpiewasz
+Gdy nie słyszy nikt
+Nie uciekaj już
+Przed marzeniem co oślepia nas
+Przecież ja od dawna widzę tylko mrok
+Nigdy już nie wezmę nic na sen
+Boję się swoich ciemnych cichych miejsc`
   },
   {
     artist: 'Wilki',
     title: 'Baśka',
     lyrics: `Baśka, Baśka, gdzie ty jesteś
-Baśka, Baśka, czemu nie ma cię
-Baśka, Baśka, wróć do domu
-Baśka, Baśka, czekam na cię tu
+Baśka miała fajny biust,
+Ania – styl, a Zośka – coś, co lubię.
+Ela całowała cudnie,
+Nawet tuż po swoim ślubie.
+Z Kaśką można było konie kraść,
+Chociaż wiem,
+Że chciała przeżyć ze mną swój pierwszy raz.
+Magda – zło, Jolka mnie
+Zagłaskałaby na śmierć,
+A Agnieszka zdradzała mnie.
 
-Pamiętam twoje oczy
-Pamiętam twój uśmiech
-Pamiętam jak tańczyłaś
-W tę letnią noc
+Piękne jak okręt
+Pod pełnymi żaglami,
+Jak konie w galopie,
+Jak niebo nad nami.
 
-Baśka, Baśka, gdzie ty jesteś
-Baśka, Baśka, czemu nie ma cię
-Wróć do mnie Baśka
-Wróć do mnie`
+Karolina – w Hollywood,
+Z Aśką nigdy nie było tak samo.
+Ewelina zimna jak lód,
+Więc na noc umówiłem się z Alą.
+Wszystko mógłbym Izie dać,
+Tak jak Oli,
+Ale one wcale nie chciały brać.
+Małgorzata – jeden grzech,
+Aż onieśmielała mnie,
+A Monika była okej.
+
+Piękne jak okręt
+Pod pełnymi żaglami,
+Jak konie w galopie,
+Jak niebo nad nami. (x2)
+`
   },
   {
     artist: 'Krzysztof Krawczyk',
     title: 'Bo jesteś ty',
     lyrics: `Bo jesteś ty, bo jesteś ty
-I nie trzeba mi nic więcej
-Bo jesteś ty, bo jesteś ty
-I świat jest piękniejszy przez cię
+Na zewnątrz mgła, tylko ziąb i deszcz
+A dla mnie świat w ciepłym świetle świec
+Powietrze ma elektryczny smak
+Chciałbym tak trwać nawet tysiąc lat
 
-Kiedy patrzę w twoje oczy
-Zapominam o wszystkim
-Kiedy trzymam twoją rękę
-Wszystko inne znika
+Bo jesteś Ty
+Znów przy mnie budzisz się
+Bo jesteś Ty
+I wciąż czuję, że...
+Bo jesteś Ty
+Cóż więcej mógłbym chcieć?
+Bo jesteś tu
+I proszę zostań już
 
-Bo jesteś ty, bo jesteś ty
-Moje słońce i mój świat
-Bo jesteś ty, bo jesteś ty
-I tak chcę spędzić każdy dzień`
+Ja chciałbym tak zawsze biec pod wiatr
+Nie liczyć dni, ciągle zmieniać twarz
+Sprawić by czas wciąż omijał mnie
+Wszystko to już dziś nie liczy się
+
+Bo jesteś Ty
+Zaczynasz ze mną dzień
+Bo jesteś wciąż
+Gdy zaczyna się noc
+Już wszystko mam
+Cóż więcej mógłbym chcieć?
+Bo jesteś tu
+I zawsze tu bądź
+
+Bo jesteś Ty
+Znów przy mnie budzisz się
+Bo jesteś Ty
+I wciąż czuję, że...
+Bo jesteś Ty
+Cóż więcej mógłbym chcieć?
+Bo jesteś tu
+I proszę zostań już
+
+Bo jesteś Ty...`
   },
   {
     artist: 'Krzysztof Krawczyk',
     title: 'Trudno tak',
     lyrics: `Trudno tak żyć bez ciebie
-Trudno tak, trudno tak
-Trudno tak żyć bez ciebie
-Trudno tak każdy dzień
+(Bartosiewicz:)
+Trudno tak
+Razem być nam ze sobą
+Bez siebie nie jest lżej
 
-Widzę cię w każdym miejscu
-Słyszę twój głos w ciszy
-Trudno tak żyć bez ciebie
-Trudno tak, wiesz
+(Krawczyk;)
+Ulice odbijają szary smutek nieba
+W sercu czuję chłód samotnej nocy
+Zapach czarnej kawy
+Filiżanki ciepło
+Jak przystań, gdy wokół
+Burzy się szaleństwo
 
-Może kiedyś wrócisz
-Może kiedyś zrozumiesz
-Że trudno tak żyć bez ciebie
-Trudno tak każdy dzień`
+Zasłonięte okna
+Cieniste podwórza
+Tych cichych dramatów
+Sceny niezliczone
+Gdy sił mi brak
+Śnię o słonecznych czasach
+Tych wspólnie z tobą spędzonych
+
+(Bartosiewicz:)
+Trudno tak
+Razem być nam ze sobą
+Bez siebie nie jest lżej
+
+Lecz trzeba nam
+Trzeba dbać o tę miłość
+Nie wolno stracić jej
+Nam nie wolno stracić jej
+
+W twoim śnie jestem gwiazdą
+Ze starego romansu
+Twe łzy niczym kołdra
+Na moim nagim ciele
+Smak kawy cię budzi
+A minuty wciąż płyną
+Myśli ciążą bardziej
+Niż wczorajsze wino
+
+(Krawczyk i Bartosiewicz:)
+Zasłonięte okna
+Cieniste podwórza
+Tych cichych dramatów
+Sceny nie zliczone
+Gdy sił mi brak
+Śnię o słonecznych czasach
+Tych wspólnie z tobą spędzonych
+
+Trudno tak
+Razem być nam ze sobą
+Bez siebie nie jest lżej
+
+Lecz trzeba nam
+Trzeba dbać o tę miłość
+Nie wolno stracić jej
+Nam nie wolno stracić jej
+
+(Bartosiewicz:)
+Nie wolno stracić jej
+(Krawczyk:)
+Nie wolno stracić jej
+(Bartosiewicz:)
+Nie wolno stracić jej
+(Krawczyk:)
+Nam nie wolno stracić jej
+
+(Bartosiewicz i Krawczyk:)
+O, trudno tak
+Razem być nam ze sobą
+Bez siebie nie jest lżej
+
+Lecz trzeba nam
+Trzeba dbać o tę miłość
+Nie wolno stracić jej
+Nam nie wolno stracić jej
+
+Nam nie wolno stracić jej
+Nam nie wolno stracić jej
+Choć trudno tak
+Nam nie wolno stracić jej
+
+Trudno razem być
+Trudno razem być
+Trudno razem być
+
+(Krawczyk:)
+Trudno tak razem być`
   },
   {
     artist: 'Varius Manx',
     title: 'Zamigotał świat',
     lyrics: `Zamigotał świat
-Kiedy spojrzałam w twe oczy
-Zamigotał świat
-I wszystko się zmieniło
+Powiedz ile jeszcze spadnie gwiazd
+Zanim odgadniemy noc
+Ile serc uniesie stary świat
+Zanim się obróci w proch
+Powiedz jakich trzeba użyć słów
+By powstrzymać ludzkie łzy
+Ile jeszcze trzeba odkryć prawd
+By prawdziwie zacząć żyć
 
-Nie wiedziałam że to tak
-Że serce może tak bić
-Nie wiedziałam że to tak
-Że można tak kochać
+Refren:
+Zamigotał świat tysiącem barw
+Tysiąc nowych pytań przywiał wiatr
+Słońce świeci nocą księżyc za dnia
+Coraz więcej ludzi coraz mniej nas
+Ocal mnie nim utracę wiarę w sens
 
-Zamigotał świat
-I nie mogę się zatrzymać
-Zamigotał świat
-Zamigotał cały świat`
+Powiedz jak ochronić dobre sny
+Przed jaskrawym światłem dnia
+Jaką siłę trzeba w sobie mieć
+Żeby odbić się od dna
+Powiedz jak pokonać w sobie gniew
+I lepszym się stać
+Dokąd iść gdy nie ma dokąd pójść
+I skąd nadzieję brać
+
+Refren:
+Zamigotał świat tysiącem barw
+Tysiąc nowych pytań przywiał wiatr
+Słońce świeci nocą księżyc za dnia
+Coraz więcej ludzi coraz mniej nas
+Ocal mnie nim utracę wiarę w sens`
   },
   {
     artist: 'Hey',
     title: 'Teksański',
     lyrics: `Teksański, teksański
-Jeździ konno przez prerie
-Teksański, teksański
-Nie boi się niczego
+Herbata stygnie, zapada mrok
+A pod piórem ciągle nic
 
-Ma kapelusz i kowbojki
-Ma rewolwer przy boku
-Ma kapelusz i kowbojki
-I wolność w każdym kroku
+Obowiązek obowiązkiem jest
+Piosenka musi posiadać tekst
+Gdyby chociaż mucha zjawiła się
+Mogłabym ją zabić
+A później to opisać
 
-Teksański, teksański
-Jedzie sobie przez świat
-Teksański, teksański
-I nie patrzy się wstecz`
+W moich słowach słoma czai się
+Nie znaczą nic
+Jeśli szukasz sensu, prawdy w nich
+Zawiedziesz się
+
+A może zmienić zasady gry?
+Chcesz usłyszeć słowa
+To sam je sobie wymyśl
+
+Nabij diabła, chmurę śmierci weź
+Pomoże Ci
+Wnet twe myśli w słowa zmienią się
+Wyśpiewasz je sam
+
+Nabij diabła, chmurę śmierci weź
+Pomoże Ci
+Wnet twe myśli w słowa zmienią się
+Wyśpiewasz je sam
+
+Wyśpiewasz, wyśpiewasz je sam
+
+Wyśpiewasz, wyśpiewasz je sam`
   },
   {
     artist: 'Marek Grechuta',
     title: 'Dni których nie znamy',
     lyrics: `Są takie dni których nie znamy
-Są takie dni co do nas nie należą
-Są takie dni których nie znamy
-I nigdy nie będziemy ich znać
+Tyle było dni, do utraty sił,
+Do utraty tchu, tyle było chwil,
+Gdy żałujesz tych, z których nie masz nic,
+Jedno warto znać, jedno tylko wiedz:
 
-Gdzieś tam daleko za horyzontem
-Czekają na nas nieznane chwile
-Gdzieś tam daleko za horyzontem
-Dni których nie znamy jeszcze
+Że ważne są tylko te dni, których jeszcze nie znamy,
+Ważnych jest kilka tych chwil, tych, na które czekamy,
+Ważne są tylko te dni, których jeszcze nie znamy,
+Ważnych jest kilka tych chwil, tych na które czekamy.
 
-Żyjemy chwilą którą mamy
-Jutro może być inne
-Żyjemy chwilą którą mamy
-Dni których nie znamy`
+Pewien znany ktoś, kto miał dom i sad,
+Zgubił nagle sens i w złe kręgi wpadł,
+Choć majątek prysł, on nie stoczył się,
+Wytłumaczyć umiał sobie wtedy właśnie, że...
+
+Że, ważne są tylko te dni, których jeszcze nie znamy,
+Ważnych jest kilka tych chwil, tych na które czekamy,
+Ważne są tylko te dni, których jeszcze nie znamy,
+Ważnych jest kilka tych chwil, tych na które czekamy
+
+Jak rozpoznać ludzi, których już nie znamy?
+Jak pozbierać myśli z tych nieposkładanych?
+Jak oddzielić nagle rozum swój od serca?
+Jak usłyszeć siebie, w takim szumnym scherz'u (czyt.skercu)
+
+Jak rozpoznać ludzi, których już nie znamy?
+Jak pozbierać myśli z tych nieposkładanych?
+Jak odnaleźć nagle radość i nadzieję?
+Odpowiedzi szukaj, czasu jest niewiele.
+
+Ważne są tylko te dni, których jeszcze nie znamy,
+Ważnych jest kilka tych chwil, tych na które czekamy,
+Ważne są tylko te dni, których jeszcze nie znamy,
+Ważnych jest kilka tych chwil, na które czekamy.
+
+Na na na na na na na na na...`
   },
   {
     artist: 'Strachy na Lachy',
     title: 'Piła tango',
     lyrics: `W Pile tańczyło się tango
-Wszyscy tańczyli tango
-W Pile tańczyło się tango
-Do późnej nocy
+Oto historia z kantem
+Co podwójne ma dno
+Gdyby napisał ją Dante
+To nie tak by to szło
 
-Muzyk grał na akordeonie
-Pary się kręciły w kółko
-Muzyk grał na akordeonie
-I nikt nie chciał wychodzić
+Grzesiek Kubiak, czyli Kuba rządził naszą podstawówką
+Po lekcjach na boisku ganiał za mną z cegłówką
+W Pile było jak w Chile, każdy miał czerwone ryło
+Mniej lub bardziej to pamiętasz – spytaj jak to było
+W czasach gdy nad Piłą jeszcze latały samoloty
+Wojewoda Śliwiński kazał pomalować płoty
+Potem wszystkie płoty w Pile miały kolor zieleni
+Rogaczem na wieżowcu Piła witała jeleni
 
-W Pile tańczyło się tango
-Piła tango, piła tango
-W Pile tańczyło się tango
-Do białego rana`
+Statek Piła Tango
+Czarna bandera
+To tylko Piła Tango
+Tańczysz to teraz
+Płynie statek Piła Tango
+Czarna Bandera
+Ukłoń się świrom
+Żyj, nie umieraj
+
+Gruby jak armata Szczepan błąkał się po kuli ziemskiej
+Trafił do Ameryki prosto z Legii Cudzoziemskiej
+Baca w Londynie z buchami się sąsiedzi
+Lżej się tam halucynuje, nikt go tam nie śledzi
+Karawan z Holandii, on przyjechał tutaj wreszcie
+Są już Kula, Czarny Dusioł – słychać strzały na mieście
+Znam jednak takie miejsca, gdzie jest lepiej chodzić z nożem
+Całe Górne i Podlasie – wszyscy są za Kolejorzem
+(Hej Kolejorz!)
+
+Statek Piła Tango
+Czarna bandera
+To tylko Piła Tango
+Tańczysz to teraz
+Płynie statek Piła Tango
+Czarna Bandera
+Ukłoń się świrom
+Żyj, nie umieraj
+
+Andrzej Kozak, Mandaryn? Znana postać medialna
+Tyci przy nim jest kosmos, gaśnie gwiazda polarna
+Jest tu Siwy, który w rękach niebezpieczne ma narzędzie
+A kiedy Siwy tańczy – znaczy mordobicie będzie
+U Budzików pod tytułem chleją nawet z gór szkieły
+Zbigu śpi przy stoliku, ma nieczynny przełyk
+Lecz spokojnie panowie, według mej najlepszej wiedzy
+Najszersze gardła tu to mają z INRI koledzy
+(Polej, polej!)
+
+Statek Piła Tango
+Czarna bandera
+To tylko Piła Tango
+Tańczysz to teraz
+Płynie statek Piła Tango
+Czarna Bandera
+Ukłoń się świrom
+Żyj, nie umieraj
+
+Nad rzeką, latem ferajna na grilla się zasadza
+Auta z Niemiec? Sam wiem kto je tu sprowadza
+Żaden spleen i cud, na ulicach nie śpią złotówki
+W Pile Święta jest Rodzina i święte są żarówki
+Nic nie szkodzi, że z wieczora miasto dławi się w fetorach
+Ważne, że jest żużel i kiełbasy senatora!
+Fajne z Wincentego Pola idą w świat dziewczyny
+Po pokładzie jeździ Jojo bicyklem z Ukrainy
+
+Statek Piła Tango
+Czarna bandera
+To tylko Piła Tango
+Tańczysz to teraz
+Płynie statek Piła Tango
+Czarna Bandera
+Ukłoń się świrom
+Żyj, nie umieraj
+
+Oto historia z kantem
+Co podwójne ma dno
+Gdyby napisał ją Dante
+To nie tak by to szło
+(By szło, by szło)
+`
   },
   {
     artist: 'Dżem',
     title: 'Wehikuł czasu',
     lyrics: `Wsiadam do wehikułu czasu
-Chcę wrócić do tamtych lat
-Wsiadam do wehikułu czasu
-Kiedy świat był inny, lepszy świat
+Pamiętam dobrze ideał swój
+Marzeniami żyłem jak król
+Siódma rano to dla mnie noc
+Pracować nie chciałem, włóczyłem się
 
-Pamiętam tamte dni
-Pamiętam tamte noce
-Pamiętam tamte dni
-Kiedy wszystko było możliwe
+Za to do puszki zamykano mnie
+Za to zwykle zamykano mnie
+Po knajpach grywałem za piwko i chleb
+Na szyciu bluesa tak mijał mi dzień
 
-Wehikuł czasu zabierz mnie
-Z powrotem do tamtych lat
-Wehikuł czasu zabierz mnie
-Kiedy byłem szczęśliwy i młody`
+Tylko nocą do klubu "Puls"
+Jam-session do rana, tam królował blues
+To już minęło, ten klimat, ten luz
+Wspaniali ludzie nie powrócą
+Nie powrócą już!
+
+Lecz we mnie zostało coś z tamtych lat
+Mój mały, intymny, muzyczny świat
+Gdy tak wspominam ten miniony czas
+Wiem jedno, że to nie poszło w las
+
+Dużo bym dał, by przeżyć to znów
+Wehikuł czasu to byłby cud!
+Mam jeszcze wiarę, odmieni się los
+Znów kwiatek do lufy wetknie im ktoś
+
+Tylko nocą do klubu "Puls"
+Jam-session do rana, tam królował blues
+To już minęło, te czasy, ten luz
+Wspaniali ludzie nie powrócą
+Nie powrócą już! Oh
+
+Tylko nocą do klubu "Puls"
+Jam-session do rana, tam królował blues
+To już minęło, te czasy, ten luz
+Wspaniali ludzie nie powrócą
+Nie powrócą już! Nie! Yeah!`
   },
   {
     artist: 'Dżem',
     title: 'Whiskey',
     lyrics: `Whiskey, whiskey
-Mój najlepszy przyjaciel
-Whiskey, whiskey
-Kiedy smutno mi jest
+Mówią o mnie w mieście: "Co z niego za typ?
+Wciąż chodzi pijany, pewno nie wie co to wstyd.
+Brudny, niedomytek, w stajni ciągle śpi!
+Czego szuka w naszym mieście?
+Idź do diabła" - mówią ludzie pełni cnót.
 
-Siedzę sam w barze
-Szklankę trzymam w dłoni
-Siedzę sam w barze
-I myślę o tobie
+Chciałem kiedyś zmądrzeć, po ich stronie być,
+Spać w czystej pościeli, świeże mleko pić.
+Naprawdę chciałem zmądrzeć i po ich stronie być.
+Pomyślałem więc o żonie, aby stać się jednym z nich,
+Stać się jednym z nich, stać się jednym z nich...
 
-Whiskey, whiskey
-Nie zastąpisz mi jej
-Whiskey, whiskey
-Ale przynajmniej jesteś tu`
+Już miałem na oku hacjendę, wspaniałą, mówię wam,
+Lecz nie chciała tam zamieszkać żadna z pięknych dam.
+Wszystkie śmiały się, wołając, wołając za mną wciąż:
+"Bardzo ładny Frak masz, Billy,
+Ale kiepski byłby z Ciebie mąż, kiepski byłby z Ciebie mąż".
+Ouuu, yeah, yeah, yeah.
+
+Kiepski byłby mąż.
+Yeah.
+
+Whisky, moja żono, jednak Tyś najlepszą z dam.
+Już mnie nie opuścisz, nie, nie będę sam.
+Mówią: whisky to nie wszystko, można bez niej żyć,
+Lecz nie wiedzą o tym,
+Że najgorzej w życiu to,
+To samotnym być, to samotnym być
+
+O nie!
+Lecz nie wiedzą o tym, że
+Najgorzej w życiu to,
+To samotnym być.
+Nie, o nie!
+Nie chcę już samotnym być, nie!
+O nie!
+Nie chcę już, nie chcę już samotnym być, nie!
+Nie chcę już, nie chcę już samotnym być, nie!
+Nie! `
   },
   {
-    artist: 'Dżem',
+    artist: 'Lzy',
     title: 'Agnieszka',
     lyrics: `Agnieszka, Agnieszka
-Gdzie się podziałaś
-Agnieszka, Agnieszka
-Czemu odeszłaś
+Było ciepłe lato, choć czasem padało
+Dużo wina się piło i mało się spało
+Tak zaczęła się wakacyjna przygoda
+On był jeszcze młody i ona była młoda
 
-Pamiętam jak tańczyłaś
-W tę deszczową noc
-Pamiętam jak się śmiałaś
-I twój ciepły głos
+Zakochani przy świetle księżyca nocami
+Chodzili długimi leśnymi ścieżkami
+Tak mijały tygodnie, lecz rozstania nadszedł czas
+Zawsze mówił jedno zdanie: "Moje śliczne Ty kochanie"
 
-Agnieszka, Agnieszka
-Wróć do mnie znowu
-Agnieszka, Agnieszka
-Czekam na cię tu`
+Ostatniego dnia tych pamiętnych wakacji
+Kochali się namiętnie w męskiej ubikacji
+I przysięgli przed Bogiem miłość wzajemną
+Że za rok się spotkają i na zawsze ze sobą już będą
+
+Tęsknił za nią i pisał do niej listy miłosne
+W samotności przeżył jesień, zimę, wiosnę
+Nie wytrzymał do wakacji, postanowił ją odwiedzić
+Bo nie dostał już dawno od niej żadnej odpowiedzi
+
+Gdy przyjechał do jej domu po dość długiej podróży
+Cieszył się, że ją zobaczy - w końcu tyle dla niej znaczył
+Lecz, gdy ona go ujrzała szybko się schowała
+Drzwi mu matka otworzyła i tak mu powiedziała:
+
+Agnieszka już dawno tutaj nie mieszka
+O nie, nie, nie
+Agnieszka już dawno tutaj nie mieszka
+Agnieszka już dawno tutaj nie mieszka
+O nie, o nie, nie, nie
+Agnieszka już dawno tutaj nie mieszka
+
+Rozczarował się, bo takie są zawody miłosne
+Cierpiał całą jesień, zimę, no i wiosnę
+A gdy przeszło mu zupełnie pojechał na wakacje
+W tamto miejsce, by zobaczyć tę pamiętną ubikację
+
+Tak się stało, że przypadkiem ona też tam była
+Ucieszyła się ogromnie, gdy go tylko zobaczyła
+Zapytała się, czy w sercu jego jest jeszcze Agnieszka
+Odpowiedział jednym zdaniem: "Moje śliczne Ty kochanie"
+
+Agnieszka już dawno tutaj nie mieszka
+O nie, nie, nie
+Agnieszka już dawno tutaj nie mieszka
+Agnieszka już dawno tutaj nie mieszka
+O nie, o nie, nie, nie
+Agnieszka już dawno tutaj nie mieszka
+`
   },
   {
-    artist: 'Dżem',
+    artist: 'Kwiat Jabloni',
     title: 'Dziś pójdę późno spać',
     lyrics: `Dziś pójdę późno spać
-Bo jeszcze nie chcę kończyć tej nocy
-Dziś pójdę późno spać
-Bo muzyka gra i jest dobrze
+Dziś późno pójdę spać
+Gdy wszyscy będą w łóżkach
+Otwarte oczy mam
+A głowa pełna i pusta
+I nie wiem, o czym myśleć mam
+Żeby mi się przyśnił taki świat
+W którym się nie boję spać
+W którym się nie boję spać
 
-Jeszcze jeden drink
-Jeszcze jedna piosenka
-Jeszcze jeden drink
-Noc jest długa i piękna
+Już na mnie idzie tłum
+I depcze wszystko po drodze
+Nie mogę uciec mu
+On też przed sobą nie może
+Gwiazd już nie widać, no bo jak?
+Kiedy łuna z ziemi bije tak
+Jak gdyby chciała zalać świat
+Jak gdyby chciała zalać świat
 
-Dziś pójdę późno spać
-Jutro będzie nowy dzień
-Dziś pójdę późno spać
-Dziś jeszcze nie`
+Ref.: (x2)
+Choć nie chcę budzić się
+Nie umiem spać
+Świat dziwny jest jak sen
+A sen jak świat
+
+Nie mogę ruszyć w przód
+Nogi sklejone taśmami
+Zaczynam spadać w dół
+Spadam do góry nogami
+Myślę sobie - zaraz obudzę się
+Lecz im bardziej spadam,
+tym bardziej widzę, że
+To wszystko chyba nie jest sen
+To wszystko chyba nie jest sen
+
+Ref.: (x4)
+Choć nie chcę budzić się
+Nie umiem spać
+Świat dziwny jest jak sen
+A sen jak świat
+`
   },
   {
-    artist: 'Dżem',
+    artist: 'Sanah',
     title: 'Ale jazz',
     lyrics: `Ale jazz, ale jazz
-Gra mi w głowie i sercu
-Ale jazz, ale jazz
-Nie mogę się zatrzymać
+Kawka na wynos dzisiaj towarzyszy mi
+To cappuccino niesłodzone - będę fit
+Szekspirowski sznyt całe noce mi się śnił
+Gdzie Romeo był?
 
-Kontrabas gra
-Trąbka śpiewa
-Kontrabas gra
-I perkusja bije
+Codziennie narzekałam - gdzie ten happy end?
+Me vibrato chciało dalej się wznieść
+Ja nie pytam już i wiem, o co chodzi mu
+A w mej głowie luz
 
-Ale jazz, ale jazz
-Kto raz to poczuł
-Ale jazz, ale jazz
-Ten już nie wróci`
+
+Oo, ale jazz!
+Hardkorowo pada deszcz
+Tak na maksa wieje też
+Ja łagodnie uśmiechnięta
+Błyska gdzieś
+Na mej dłoni czuję dreszcz
+Moje oczy błyszczą też
+Ja łagodnie uśmiechnięta
+
+Oh-oh-oh-oh-oh-oh
+Hardkorowo pada deszcz
+Ja łagodnie uśmiechnięta
+
+
+Jeszcze nie przyszła, a o ósmej miała być
+Widzę na Insta - kawkę woli sama pić
+Ale ze mnie dzban, teraz szansę ma
+Inny kolo, inny kolo
+
+
+Oo, ale jazz!
+Hardkorowo pada deszcz
+Tak na maksa wieje też
+Ja łagodnie uśmiechnięta
+Błyska gdzieś
+Na mej dłoni czuję dreszcz
+Moje oczy błyszczą też
+Ja łagodnie uśmiechnięta
+
+Oh-oh-oh-oh-oh-oh
+Hardkorowo pada deszcz
+Ja łagodnie uśmiechnięta
+
+
+Oo, ale blues!
+Nie mam siły się tak czuć
+Dziś poznałem co to chłód
+A Ty chodzisz uśmiechnięta
+
+Błyska gdzieś
+Na mej dłoni czuję dreszcz
+Moje oczy błyszczą też
+Ja łagodnie uśmiechnięta
+
+Czy Ty, Ty, Ty, Ty nie lubisz mnie już?
+
+Hardkorowo pada deszcz
+Ja łagodnie uśmiechnięta`
   },
   {
-    artist: 'Dżem',
+    artist: 'Enej',
     title: 'Kamień z napisem love',
     lyrics: `Znalazłem kamień z napisem love
-Leżał na drodze sam
-Znalazłem kamień z napisem love
-I zabrałem go ze sobą
+Dałem ci kamień z wielkim LOVE
+No, bo kwiaty szybko schną
+Jedyne, co ci mogłem dać
+To kamień z napisem LOVE
 
-Ktoś go zostawił przed laty
-Ktoś kochał i odszedł
-Ktoś go zostawił przed laty
-A miłość została w kamieniu
+Ja dałem ci kamień z wielkim LOVE
+No, bo kwiaty szybko schną
+Jedyne, co ci mogłem dać
+To kamień z napisem LOVE
 
-Kamień z napisem love
-Teraz leży na mojej półce
-Kamień z napisem love
-I przypomina mi że warto`
+W jubilerskim dziale
+Wszystko drogie tam
+Kupiłbym korale jedne, może dwa
+I pokochałabyś, i uwielbiałabyś
+Lecz na szyi dalej będzie nic
+
+Dałem ci kamień z wielkim LOVE
+No, bo kwiaty szybko schną
+Jedyne, co ci mogłem dać
+To kamień z napisem LOVE
+
+Ja dałem ci kamień z wielkim LOVE
+No, bo kwiaty szybko schną
+Jedyne, co ci mogłem dać
+To kamień z napisem LOVE
+
+Mam już parę złotych
+Zbieram drugą noc
+Dałbym tobie kwiatów nawet cały kosz
+I tak kochałabyś, i pogłaskałabyś
+Potem z głodu łokcie będę gryźć
+
+Dałem ci kamień z wielkim LOVE
+No, bo kwiaty szybko schną
+Jedyne, co ci mogłem dać
+To kamień z napisem LOVE
+
+Ja dałem ci kamień z wielkim LOVE
+No, bo kwiaty szybko schną
+Jedyne, co ci mogłem dać
+To kamień z napisem LOVE
+
+Ale ta historia ma też happy end
+Bo ten zwykły kamień, okazało się
+Że on ze złota był
+To chyba mi się śni
+Jedno wyjście pozostało mi
+(Sorry mała)
+
+Zabrałem ci kamień z wielkim LOVE
+Teraz mam milionów sto
+A tobie dam, co chciałaś mieć
+Te kwiaty za złotych pięć 4x`
   }
 ];
 
