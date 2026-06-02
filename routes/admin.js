@@ -31,7 +31,7 @@ router.get('/export-csv', async function(req, res) {
     const users = await getAllUsers();
     const lines = ['name,points,book,games,volunteers,film,legal_version,last_visit'];
     users.forEach(function(u) {
-      const lastVisit = u.last_visit ? new Date(u.last_visit).toISOString() : 'never';
+      const lastVisit = u.last_visit && u.last_visit > 0 ? new Date(parseInt(u.last_visit)).toISOString() : 'never';
       lines.push([
         u.hive_name, u.points||0, u.book||0, u.games||0,
         u.volunteers||0, u.film||0, u.legal_version||'none', lastVisit
