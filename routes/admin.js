@@ -49,7 +49,7 @@ router.get('/export-csv', async function(req, res) {
   if (!checkAdminSession(req, res)) return;
   try {
     const users = await getAllUsers();
-    const lines = ['name,points,book,games,volunteers,film,legal_version,last_visit'];
+    const lines = ['hive_name,points,book,games,volunteers,film,legal_version,last_visit'];
     users.forEach(function(u) {
       const lastVisit = u.last_visit ? new Date(u.last_visit).toISOString() : 'never';
       lines.push([
