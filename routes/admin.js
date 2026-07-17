@@ -94,11 +94,11 @@ router.get('/panel', async function(req, res) {
                 '<input type="hidden" name="key" value="' + escape(u.hive_name) + '"/>' +
                 '<button type="submit" class="btn btn-gold btn-sm">Reset CI</button>' +
               '</form> ' +
-               '<form method="POST" action="' + ADMIN_URL + '/delete-user" style="display:inline" onsubmit="return confirm(\'Delete ' + escape(u.hive_name) + '? This cannot be undone.\')">' +
+               '<form method="POST" action="' + ADMIN_URL + '/reset-pin" style="display:inline" onsubmit="return confirm(\'Reset PIN for ' + escape(u.hive_name) + '? They will need to set a new one.\')">' +
                 '<input type="hidden" name="_csrf" value="' + csrf + '"/>' +
                 '<input type="hidden" name="key" value="' + escape(u.hive_name) + '"/>' +
-                '<button type="submit" class="btn btn-red btn-sm">Delete</button>' +
-              '</form>' +            '</td></tr>';
+                '<button type="submit" class="btn btn-blue btn-sm">Reset PIN</button>' +
+              '</form> ' +     '</td></tr>';
         }).join('');
 
     let nameTags = '';
@@ -289,6 +289,13 @@ router.post('/reset-checkin', async function(req, res) {
   user.last_visit = 0;
   await upsertUser(req.body.key, user);
   res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Check-in reset for ' + req.body.key));
+});
+
+router.post('/reset-pin', async function(req, res) {
+  if (!checkAdminSession(req, res)) return;
+  if (!csrfOk(req, res)) return;
+  await pool.query('UPDATE users SET pin_hash=NULL WHERE hive_name=$1', [req.body.key]);
+  res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('PIN reset for ' + req.body.key));
 });
 
 router.post('/delete-user', async function(req, res) {
