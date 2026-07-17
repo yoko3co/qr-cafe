@@ -87,14 +87,31 @@ router.get('/', function(req, res) {
   res.send(page('QR Cafe',
     '<h1>QR Cafe</h1>' +
     '<h2>Witamy w Krolestwie!</h2>' +
-    '<div class="info">Chcesz zalozyc konto?<br><strong>Zapytaj w Krolestwie!</strong></div>' +
+    '<div id="msg"></div>' +
+    '<input type="text" id="uname" placeholder="Username" maxlength="30"/>' +
+    '<input type="password" id="pin" placeholder="PIN" maxlength="8"/>' +
+    '<button class="btn btn-gold" onclick="doPinLogin()">Login</button>' +
+    '<a href="/register" class="link">New here? Create account</a>' +
     '<hr>' +
-    '<a href="hive://browser?url=' + encodeURIComponent(BASE_URL + '/') + '" class="btn btn-blue" id="open-keychain">Open in Keychain App</a>' +
+    '<p style="font-size:12px;color:#666;margin-bottom:8px">Or use Hive Keychain</p>' +
+    '<a href="hive://browser?url=' + encodeURIComponent(BASE_URL + '/') + '" class="btn btn-gray" id="open-keychain" style="font-size:13px;padding:10px">Open in Keychain App</a>' +
     '<script>' +
+    'function doPinLogin(){' +
+      'var u=document.getElementById("uname").value.trim().toLowerCase();' +
+      'var p=document.getElementById("pin").value.trim();' +
+      'if(!u||!p){document.getElementById("msg").innerHTML="<div class=\\"error\\">Fill both fields</div>";return;}' +
+      'fetch("/login-pin-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,pin:p})})' +
+        '.then(function(x){return x.json();})' +
+        '.then(function(d){' +
+          'if(d.ok){window.location.href="/home";}' +
+          'else{document.getElementById("msg").innerHTML="<div class=\\"error\\">"+d.error+"</div>";}' +
+        '});' +
+    '}' +
     'if(typeof window.hive_keychain!=="undefined"){' +
       'document.getElementById("open-keychain").style.display="none";' +
       'var btn=document.createElement("button");' +
-      'btn.className="btn btn-blue";' +
+      'btn.className="btn btn-gray";' +
+      'btn.style.fontSize="13px";btn.style.padding="10px";' +
       'btn.innerText="Login with Hive Keychain";' +
       'btn.onclick=function(){' +
         'window.hive_keychain.requestSignBuffer(null,"qrcafe-login","Posting",function(r){' +
@@ -111,7 +128,6 @@ router.get('/', function(req, res) {
     '<a class="link" href="/leaderboard">View Leaderboard</a>' +
     '<a class="link" href="/polls">View Polls</a>'
   ));
-});
 
 // ==================== KEYCHAIN AUTH ====================
 
@@ -197,6 +213,89 @@ router.get('/drinks', function(req, res) {
     '</script>' +
     navBar()
   ));;
+});
+const bcrypt = require('bcryptjs');
+
+router.get('/register', function(req, res) {
+  res.send(page('Register',
+    '<h1>Register</h1>' +
+    '<h2>Create account (test)</h2>' +
+    '<div id="msg"></div>' +
+    '<input type="text" id="uname" placeholder="Username" maxlength="30"/>' +
+    '<input type="password" id="pin" placeholder="PIN (4-8 digits)" maxlength="8"/>' +
+    '<button class="btn btn-gold" onclick="doRegister()">Register</button>' +
+    '<a href="/login-pin" class="link">Already have an account? Login</a>' +
+    '<script>' +
+    'function doRegister(){' +
+      'var u=document.getElementById("uname").value.trim().toLowerCase();' +
+      'var p=document.getElementById("pin").value.trim();' +
+      'if(!u||!/^[a-z0-9._-]{3,30}$/.test(u)){document.getElementById("msg").innerHTML="<div class=\\"error\\">Username: 3-30 chars, a-z 0-9 . _ -</div>";return;}' +
+      'if(!/^[0-9]{4,8}$/.test(p)){document.getElementById("msg").innerHTML="<div class=\\"error\\">PIN must be 4-8 digits</div>";return;}' +
+      'fetch("/register-pin",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,pin:p})})' +
+        '.then(function(x){return x.json();})' +
+        '.then(function(d){' +
+          'if(d.ok){window.location.href="/home";}' +
+          'else{document.getElementById("msg").innerHTML="<div class=\\"error\\">"+d.error+"</div>";}' +
+        '});' +
+    '}' +
+    '</script>'
+  ));
+});
+
+router.post('/register-pin', async function(req, res) {
+  const username = (req.body.username||'').trim().toLowerCase();
+  const pin      = (req.body.pin||'').trim();
+  if (!/^[a-z0-9._-]{3,30}$/.test(username)) return res.json({ ok:false, error:'Invalid username' });
+  if (!/^[0-9]{4,8}$/.test(pin)) return res.json({ ok:false, error:'Invalid PIN' });
+  const { pool } = require('../db/pool');
+  const existing = await pool.query('SELECT hive_name, pin_hash FROM users WHERE hive_name=$1', [username]);
+  if (existing.rows[0] && existing.rows[0].pin_hash) return res.json({ ok:false, error:'Username taken' });
+  const hash = await bcrypt.hash(pin, 10);
+  await pool.query(
+    'INSERT INTO users (hive_name, pin_hash) VALUES ($1,$2) ON CONFLICT (hive_name) DO UPDATE SET pin_hash=$2',
+    [username, hash]
+  );
+  res.cookie('userToken', username, { httpOnly:true, sameSite:'strict', maxAge:12*60*60*1000 });
+  res.json({ ok:true });
+});
+
+router.get('/login-pin', function(req, res) {
+  res.send(page('Login',
+    '<h1>Login</h1>' +
+    '<h2>Username + PIN</h2>' +
+    '<div id="msg"></div>' +
+    '<input type="text" id="uname" placeholder="Username" maxlength="30"/>' +
+    '<input type="password" id="pin" placeholder="PIN" maxlength="8"/>' +
+    '<button class="btn btn-gold" onclick="doLogin()">Login</button>' +
+    '<a href="/register" class="link">Need an account? Register</a>' +
+    '<a href="/" class="link">Login with Keychain instead</a>' +
+    '<script>' +
+    'function doLogin(){' +
+      'var u=document.getElementById("uname").value.trim().toLowerCase();' +
+      'var p=document.getElementById("pin").value.trim();' +
+      'if(!u||!p){document.getElementById("msg").innerHTML="<div class=\\"error\\">Fill both fields</div>";return;}' +
+      'fetch("/login-pin-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,pin:p})})' +
+        '.then(function(x){return x.json();})' +
+        '.then(function(d){' +
+          'if(d.ok){window.location.href="/home";}' +
+          'else{document.getElementById("msg").innerHTML="<div class=\\"error\\">"+d.error+"</div>";}' +
+        '});' +
+    '}' +
+    '</script>'
+  ));
+});
+
+router.post('/login-pin-auth', async function(req, res) {
+  const username = (req.body.username||'').trim().toLowerCase();
+  const pin      = (req.body.pin||'').trim();
+  if (!username || !pin) return res.json({ ok:false, error:'Missing fields' });
+  const { pool } = require('../db/pool');
+  const r = await pool.query('SELECT pin_hash FROM users WHERE hive_name=$1', [username]);
+  if (!r.rows[0] || !r.rows[0].pin_hash) return res.json({ ok:false, error:'Invalid username or PIN' });
+  const ok = await bcrypt.compare(pin, r.rows[0].pin_hash);
+  if (!ok) return res.json({ ok:false, error:'Invalid username or PIN' });
+  res.cookie('userToken', username, { httpOnly:true, sameSite:'strict', maxAge:12*60*60*1000 });
+  res.json({ ok:true });
 });
 
 router.get('/logout', function(req, res) {
