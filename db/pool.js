@@ -45,6 +45,7 @@ async function initDB() {
         stopped_at BIGINT DEFAULT 0
       );
     `);
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_hash TEXT DEFAULT NULL');
     await pool.query(`
       CREATE TABLE IF NOT EXISTS allowed_names (
         name TEXT PRIMARY KEY
@@ -71,7 +72,7 @@ async function initDB() {
     `);
 await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS events_today JSONB DEFAULT \'{}\'');
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS legal_version TEXT DEFAULT NULL');
-await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS rcr_balance INTEGER DEFAULT 0');
+await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_hash TEXT DEFAULT NULL');
 await pool.query('UPDATE polls SET blockchain=false WHERE blockchain=true');
     await pool.query(`
       CREATE TABLE IF NOT EXISTS settings (
