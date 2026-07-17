@@ -2,13 +2,14 @@
 
 const express = require('express');
 const router  = express.Router();
+const bcrypt  = require('bcryptjs');
 
 const { BASE_URL, ADMIN_URL, LEGAL_VERSION }          = require('../config');
 const { getAllowedNames }                              = require('../db/pool');
 const { isAdmin, adminSessions, createAdminSession }  = require('../middleware/session');
 const { escape, page }                               = require('../views/layout');
 
-// ==================== PRIVACY PAGE ====================
+// ==================== EVENTS PAGE ====================
 
 router.get('/events', function(req, res) {
   res.send(page('Events',
@@ -27,12 +28,14 @@ router.get('/events', function(req, res) {
   ));
 });
 
+// ==================== PRIVACY PAGE ====================
+
 router.get('/privacy', function(req, res) {
   res.send(page('Privacy / RODO',
     '<h1>Privacy Policy</h1>' +
     '<h2>RODO / GDPR</h2>' +
     '<div style="text-align:left">' +
-    '<p style="color:#fbbf24;font-size:13px;font-weight:600">PL — Polityka Prywatnosci</p>' +
+    '<p style="color:#fbbf24;font-size:13px;font-weight:600">PL - Polityka Prywatnosci</p>' +
     '<p><strong>Administrator danych:</strong> Krolestwo bez Kresu</p>' +
     '<p><strong>Co przechowujemy:</strong> Nazwe uzytkownika Hive, historie aktywnosci (wizyty, punkty, glosy), date ostatniej wizyty.</p>' +
     '<p><strong>Cel:</strong> Wylacznie spolecznosciowy. Dane nie sa udostepniane osobom trzecim ani wykorzystywane komercyjnie.</p>' +
@@ -40,7 +43,7 @@ router.get('/privacy', function(req, res) {
     '<p><strong>Twoje prawa:</strong> Wglad, poprawa, usuniecie danych. Skontaktuj sie przez Instagram lub Facebook.</p>' +
     '<p><strong>Kontakt:</strong> <a href="https://www.instagram.com/krolestwo.bez.kresu/" target="_blank" style="color:#60a5fa">Instagram</a> | <a href="https://www.facebook.com/herberciarnia" target="_blank" style="color:#60a5fa">Facebook</a></p>' +
     '<hr>' +
-    '<p style="color:#fbbf24;font-size:13px;font-weight:600">EN — Privacy Policy</p>' +
+    '<p style="color:#fbbf24;font-size:13px;font-weight:600">EN - Privacy Policy</p>' +
     '<p><strong>Data controller:</strong> Krolestwo bez Kresu</p>' +
     '<p><strong>What we store:</strong> Hive username, activity history (visits, points, votes), last visit date.</p>' +
     '<p><strong>Purpose:</strong> Community use only. Data is never shared with third parties or used commercially.</p>' +
@@ -78,7 +81,7 @@ router.get('/consent', function(req, res) {
   ));
 });
 
-// ==================== LOGIN PAGE ====================
+// ==================== FRONT PAGE (PIN login primary) ====================
 
 router.get('/', function(req, res) {
   const name = req.cookies && req.cookies.userToken;
@@ -128,6 +131,7 @@ router.get('/', function(req, res) {
     '<a class="link" href="/leaderboard">View Leaderboard</a>' +
     '<a class="link" href="/polls">View Polls</a>'
   ));
+});
 
 // ==================== KEYCHAIN AUTH ====================
 
@@ -145,76 +149,7 @@ router.post('/keychain-auth', async function(req, res) {
   res.json({ ok: true });
 });
 
-// ==================== ADMIN LOGIN ====================
-
-router.get('/hallmann', function(req, res) {
-  const token = req.cookies && req.cookies.adminToken;
-  if (token && adminSessions.has(token)) return res.redirect(ADMIN_URL + '/panel');
-  const error = req.query.error ? decodeURIComponent(req.query.error) : '';
-  res.send(page('Admin Login',
-    '<h1>Admin Login</h1>' +
-    '<h2>QR Cafe</h2>' +
-    (error ? '<div class="error">' + escape(error) + '</div>' : '') +
-    '<input type="text" id="uname" placeholder="Your Hive username"/>' +
-    '<button class="btn btn-blue" onclick="doLogin()">Login with Keychain</button>' +
-    '<a href="/" class="btn btn-gray">Home</a>' +
-    '<script>' +
-    'function doLogin(){' +
-      'var u=document.getElementById("uname").value.trim().toLowerCase();' +
-      'if(!u)return alert("Enter your Hive username");' +
-      'if(typeof window.hive_keychain==="undefined")return alert("Open this page inside Keychain browser.");' +
-      'window.hive_keychain.requestSignBuffer(u,"qrcafe-admin-login","Posting",function(r){' +
-        'if(r.success){' +
-          'fetch("/admin-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:r.data.username})})' +
-          '.then(function(x){return x.json();})' +
-          '.then(function(d){' +
-            'if(d.ok){window.location.href="' + ADMIN_URL + '/panel";}' +
-            'else{alert(d.error||"Access denied");}' +
-          '});' +
-        '}else{alert("Keychain error: "+r.message);}' +
-      '});' +
-    '}' +
-    '</script>'
-  ));
-});
-
-
-router.get('/drinks', function(req, res) {
-  const name = req.cookies && req.cookies.userToken;
-  if (!name) return res.redirect('/');
-  const { navBar } = require('../views/layout');
-  res.send(require('../views/layout').page('Buy a Drink',
-    '<h1>🍺 Buy a Drink</h1>' +
-    '<h2>Support Krolestwo with RCRT</h2>' +
-    '<div class="section-card" style="text-align:left;margin-bottom:16px">' +
-      '<div class="row-item"><span>Drink</span><span style="color:#fbbf24;font-weight:700">4 RCRT</span></div>' +
-      '<div class="row-item"><span>Token</span><span style="color:#34d399">RCRT</span></div>' +
-      '<div class="row-item"><span>Sends to</span><span style="color:#aaa">rcr account</span></div>' +
-    '</div>' +
-    '<div id="status" style="font-size:13px;color:#aaa;margin-bottom:12px"></div>' +
-    '<button class="btn btn-gold" id="buy-btn" onclick="buyDrink()">Buy a drink - 0.001 HIVE</button>' +
-    '<div id="confirm" style="display:none;margin-top:16px"><div class="success">Cheers! Show this screen to staff!</div></div>' +
-    '<script>' +
-    'function buyDrink(){' +
-      'if(typeof window.hive_keychain==="undefined"){alert("Open in Keychain browser.");return;}' +
-      'document.getElementById("buy-btn").disabled=true;' +
-      'document.getElementById("status").innerText="Waiting for Keychain...";' +
-      'window.hive_keychain.requestTransfer("' + name + '","rcr","0.001","drink","HIVE",function(r){' +
-        'if(r.success){' +
-          'document.getElementById("confirm").style.display="block";' +
-          'document.getElementById("buy-btn").style.display="none";' +
-          'document.getElementById("status").innerText="";' +
-        '}else{' +
-          'document.getElementById("status").innerText="Error: "+r.message;' +
-          'document.getElementById("buy-btn").disabled=false;' +
-        '}' +
-      '});' +
-    '}' +
-    '</script>' +
-    navBar()
-  ));;
-});
-const bcrypt = require('bcryptjs');
+// ==================== PIN REGISTER ====================
 
 router.get('/register', function(req, res) {
   res.send(page('Register',
@@ -259,6 +194,8 @@ router.post('/register-pin', async function(req, res) {
   res.json({ ok:true });
 });
 
+// ==================== PIN LOGIN ====================
+
 router.get('/login-pin', function(req, res) {
   res.send(page('Login',
     '<h1>Login</h1>' +
@@ -298,10 +235,37 @@ router.post('/login-pin-auth', async function(req, res) {
   res.json({ ok:true });
 });
 
-router.get('/logout', function(req, res) {
-  res.clearCookie('userToken');
-  res.clearCookie('adminToken');
-  res.redirect('/');
+// ==================== ADMIN LOGIN ====================
+
+router.get('/hallmann', function(req, res) {
+  const token = req.cookies && req.cookies.adminToken;
+  if (token && adminSessions.has(token)) return res.redirect(ADMIN_URL + '/panel');
+  const error = req.query.error ? decodeURIComponent(req.query.error) : '';
+  res.send(page('Admin Login',
+    '<h1>Admin Login</h1>' +
+    '<h2>QR Cafe</h2>' +
+    (error ? '<div class="error">' + escape(error) + '</div>' : '') +
+    '<input type="text" id="uname" placeholder="Your Hive username"/>' +
+    '<button class="btn btn-blue" onclick="doLogin()">Login with Keychain</button>' +
+    '<a href="/" class="btn btn-gray">Home</a>' +
+    '<script>' +
+    'function doLogin(){' +
+      'var u=document.getElementById("uname").value.trim().toLowerCase();' +
+      'if(!u)return alert("Enter your Hive username");' +
+      'if(typeof window.hive_keychain==="undefined")return alert("Open this page inside Keychain browser.");' +
+      'window.hive_keychain.requestSignBuffer(u,"qrcafe-admin-login","Posting",function(r){' +
+        'if(r.success){' +
+          'fetch("/admin-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:r.data.username})})' +
+          '.then(function(x){return x.json();})' +
+          '.then(function(d){' +
+            'if(d.ok){window.location.href="' + ADMIN_URL + '/panel";}' +
+            'else{alert(d.error||"Access denied");}' +
+          '});' +
+        '}else{alert("Keychain error: "+r.message);}' +
+      '});' +
+    '}' +
+    '</script>'
+  ));
 });
 
 router.post('/admin-auth', function(req, res) {
@@ -309,6 +273,52 @@ router.post('/admin-auth', function(req, res) {
   if (!isAdmin(username)) return res.json({ ok: false, error: 'Access denied.' });
   createAdminSession(res);
   res.json({ ok: true });
+});
+
+// ==================== DRINKS ====================
+
+router.get('/drinks', function(req, res) {
+  const name = req.cookies && req.cookies.userToken;
+  if (!name) return res.redirect('/');
+  const { navBar } = require('../views/layout');
+  res.send(page('Buy a Drink',
+    '<h1>Buy a Drink</h1>' +
+    '<h2>Support Krolestwo with RCRT</h2>' +
+    '<div class="section-card" style="text-align:left;margin-bottom:16px">' +
+      '<div class="row-item"><span>Drink</span><span style="color:#fbbf24;font-weight:700">4 RCRT</span></div>' +
+      '<div class="row-item"><span>Token</span><span style="color:#34d399">RCRT</span></div>' +
+      '<div class="row-item"><span>Sends to</span><span style="color:#aaa">rcr account</span></div>' +
+    '</div>' +
+    '<div id="status" style="font-size:13px;color:#aaa;margin-bottom:12px"></div>' +
+    '<button class="btn btn-gold" id="buy-btn" onclick="buyDrink()">Buy a drink - 0.001 HIVE</button>' +
+    '<div id="confirm" style="display:none;margin-top:16px"><div class="success">Cheers! Show this screen to staff!</div></div>' +
+    '<script>' +
+    'function buyDrink(){' +
+      'if(typeof window.hive_keychain==="undefined"){alert("Open in Keychain browser.");return;}' +
+      'document.getElementById("buy-btn").disabled=true;' +
+      'document.getElementById("status").innerText="Waiting for Keychain...";' +
+      'window.hive_keychain.requestTransfer("' + name + '","rcr","0.001","drink","HIVE",function(r){' +
+        'if(r.success){' +
+          'document.getElementById("confirm").style.display="block";' +
+          'document.getElementById("buy-btn").style.display="none";' +
+          'document.getElementById("status").innerText="";' +
+        '}else{' +
+          'document.getElementById("status").innerText="Error: "+r.message;' +
+          'document.getElementById("buy-btn").disabled=false;' +
+        '}' +
+      '});' +
+    '}' +
+    '</script>' +
+    navBar()
+  ));
+});
+
+// ==================== LOGOUT ====================
+
+router.get('/logout', function(req, res) {
+  res.clearCookie('userToken');
+  res.clearCookie('adminToken');
+  res.redirect('/');
 });
 
 module.exports = router;
