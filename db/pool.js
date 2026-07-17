@@ -92,7 +92,7 @@ await pool.query('UPDATE polls SET blockchain=false WHERE blockchain=true');
 
 async function seedRCR() {
   try {
-    const { RCR_SEED } = require('../rcr');
+    const { RCR_SEED } = require('../rcr'); 
     for (const name of Object.keys(RCR_SEED)) {
       await pool.query(
         'INSERT INTO users (hive_name, rcr_balance) VALUES ($1, $2) ON CONFLICT (hive_name) DO UPDATE SET rcr_balance=$2 WHERE users.rcr_balance=0',
