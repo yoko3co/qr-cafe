@@ -38,7 +38,7 @@ function page(title, body, wide) {
     'h1{font-size:2rem;margin:0 0 8px}' +
     'h2{font-size:1.3rem;color:#e0e0e0;margin:0 0 16px}' +
     'p{color:#aaa;margin:0 0 16px;line-height:1.6}' +
-    'input[type=text],input[type=password],input[type=number]{width:100%;padding:13px 15px;font-size:15px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#fff;margin-bottom:10px;outline:none;box-sizing:border-box;transition:border-color 0.2s}' +
+    'input[type=text],input[type=password],input[type=number],input[type=email],input[type=tel]{width:100%;padding:13px 15px;font-size:15px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#fff;margin-bottom:10px;outline:none;box-sizing:border-box;transition:border-color 0.2s}' +
     'input:focus{border-color:rgba(251,191,36,0.5)}' +
     'select{width:100%;padding:12px;font-size:15px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#fff;margin-bottom:8px}' +
     '.btn{display:block;width:100%;padding:13px;font-size:16px;font-weight:600;border:none;border-radius:10px;cursor:pointer;margin-top:8px;text-decoration:none;text-align:center;box-sizing:border-box;transition:opacity 0.2s,transform 0.1s}' +
@@ -92,6 +92,7 @@ function navBar() {
     '<a href="/events" class="btn btn-gray">Events</a>' +
     '<a href="/drinks" class="btn btn-green">🍺 Drink</a>' +
     '<a href="/profile" class="btn btn-gray">Profile</a>' +
+    '<a href="/change-pin" class="btn btn-gray">PIN</a>' +
     '</div>';
 }
 
