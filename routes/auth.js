@@ -152,24 +152,23 @@ router.post('/keychain-auth', async function(req, res) {
 // ==================== PIN REGISTER ====================
 
 router.get('/register', function(req, res) {
-  res.send(page('Register',
-    '<h1>Register</h1>' +
-    '<h2>Create account (test)</h2>' +
+  const sent = req.query.sent === '1';
+  res.send(page('Claim Account',
+    '<h1>Claim Account</h1>' +
+    '<h2>Get a PIN from staff</h2>' +
+    (sent ? '<div class="success">Request sent! Ask staff at Krolestwo to approve it and give you your PIN.</div>' : '') +
     '<div id="msg"></div>' +
-    '<input type="text" id="uname" placeholder="Username" maxlength="30"/>' +
-    '<input type="password" id="pin" placeholder="PIN (4-8 digits)" maxlength="8"/>' +
-    '<button class="btn btn-gold" onclick="doRegister()">Register</button>' +
-    '<a href="/login-pin" class="link">Already have an account? Login</a>' +
+    '<input type="text" id="uname" placeholder="Your username" maxlength="30"/>' +
+    '<button class="btn btn-gold" onclick="doClaim()">Request PIN</button>' +
+    '<a href="/login-pin" class="link">Already have a PIN? Login</a>' +
     '<script>' +
-    'function doRegister(){' +
+    'function doClaim(){' +
       'var u=document.getElementById("uname").value.trim().toLowerCase();' +
-      'var p=document.getElementById("pin").value.trim();' +
       'if(!u||!/^[a-z0-9._-]{3,30}$/.test(u)){document.getElementById("msg").innerHTML="<div class=\\"error\\">Username: 3-30 chars, a-z 0-9 . _ -</div>";return;}' +
-      'if(!/^[0-9]{4,8}$/.test(p)){document.getElementById("msg").innerHTML="<div class=\\"error\\">PIN must be 4-8 digits</div>";return;}' +
-      'fetch("/register-pin",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,pin:p})})' +
+      'fetch("/claim-pin",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u})})' +
         '.then(function(x){return x.json();})' +
         '.then(function(d){' +
-          'if(d.ok){window.location.href="/home";}' +
+          'if(d.ok){window.location.href="/register?sent=1";}' +
           'else{document.getElementById("msg").innerHTML="<div class=\\"error\\">"+d.error+"</div>";}' +
         '});' +
     '}' +
@@ -177,20 +176,14 @@ router.get('/register', function(req, res) {
   ));
 });
 
-router.post('/register-pin', async function(req, res) {
+router.post('/claim-pin', async function(req, res) {
   const username = (req.body.username||'').trim().toLowerCase();
-  const pin      = (req.body.pin||'').trim();
   if (!/^[a-z0-9._-]{3,30}$/.test(username)) return res.json({ ok:false, error:'Invalid username' });
-  if (!/^[0-9]{4,8}$/.test(pin)) return res.json({ ok:false, error:'Invalid PIN' });
-  const { pool } = require('../db/pool');
-  const existing = await pool.query('SELECT hive_name, pin_hash FROM users WHERE hive_name=$1', [username]);
-  if (existing.rows[0] && existing.rows[0].pin_hash) return res.json({ ok:false, error:'Username taken' });
-  const hash = await bcrypt.hash(pin, 10);
-  await pool.query(
-    'INSERT INTO users (hive_name, pin_hash) VALUES ($1,$2) ON CONFLICT (hive_name) DO UPDATE SET pin_hash=$2',
-    [username, hash]
-  );
-  res.cookie('userToken', username, { httpOnly:true, sameSite:'strict', maxAge:12*60*60*1000 });
+  if (isAdmin(username)) return res.json({ ok:false, error:'This name is reserved' });
+  const { pool, addPinRequest } = require('../db/pool');
+  const existing = await pool.query('SELECT pin_hash FROM users WHERE hive_name=$1', [username]);
+  if (existing.rows[0] && existing.rows[0].pin_hash) return res.json({ ok:false, error:'This account already has a PIN. Try logging in.' });
+  await addPinRequest(username);
   res.json({ ok:true });
 });
 

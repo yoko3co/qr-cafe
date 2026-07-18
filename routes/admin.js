@@ -11,7 +11,9 @@ const {
   getAllPolls, getPoll, savePoll, deletePoll, savePastPoll, getPastPolls,
   getAllMissions, getMission, saveMission, deleteMission,
   getUserMissions, completeMission,
+  getPinRequests, deletePinRequest, setUserPin,
 }                                                                       = require('../db/pool');
+const bcrypt = require('bcryptjs');
 const { checkAdminSession, generateCsrf, validateCsrf }                = require('../middleware/session');
 const { fetchAllowedNames }                                             = require('../services/hive');
 const { escape, page }                                                 = require('../views/layout');
@@ -77,7 +79,8 @@ router.get('/panel', async function(req, res) {
     const allPolls     = await getAllPolls();
     const allPastPolls = await getPastPolls();
     const allowedNames = await getAllowedNames();
-    const allMissions  = await getAllMissions();
+   const allMissions  = await getAllMissions();
+    const pinRequests  = await getPinRequests();
 
     const displayUsers = allUsers.slice(0, 20);
     const userRows = allUsers.length === 0
@@ -94,11 +97,22 @@ router.get('/panel', async function(req, res) {
                 '<input type="hidden" name="key" value="' + escape(u.hive_name) + '"/>' +
                 '<button type="submit" class="btn btn-gold btn-sm">Reset CI</button>' +
               '</form> ' +
-               '<form method="POST" action="' + ADMIN_URL + '/reset-pin" style="display:inline" onsubmit="return confirm(\'Reset PIN for ' + escape(u.hive_name) + '? They will need to set a new one.\')">' +
+               '<form method="POST" action="' + ADMIN_URL + '/enable-pin" style="display:inline">' +
+                '<input type="hidden" name="_csrf" value="' + csrf + '"/>' +
+                '<input type="hidden" name="key" value="' + escape(u.hive_name) + '"/>' +
+                '<button type="submit" class="btn btn-green btn-sm">Enable PIN</button>' +
+              '</form> ' +
+              '<form method="POST" action="' + ADMIN_URL + '/reset-pin" style="display:inline" onsubmit="return confirm(\'Reset PIN for ' + escape(u.hive_name) + '?\')">' +
                 '<input type="hidden" name="_csrf" value="' + csrf + '"/>' +
                 '<input type="hidden" name="key" value="' + escape(u.hive_name) + '"/>' +
                 '<button type="submit" class="btn btn-blue btn-sm">Reset PIN</button>' +
-              '</form> ' +     '</td></tr>';
+              '</form> ' +
+              '<form method="POST" action="' + ADMIN_URL + '/delete-user" style="display:inline" onsubmit="return confirm(\'Delete ' + escape(u.hive_name) + '?\')">' +
+                '<input type="hidden" name="_csrf" value="' + csrf + '"/>' +
+                '<input type="hidden" name="key" value="' + escape(u.hive_name) + '"/>' +
+                '<button type="submit" class="btn btn-red btn-sm">Delete</button>' +
+              '</form>' +
+            '</td></tr>';
         }).join('');
 
     let nameTags = '';
@@ -147,7 +161,26 @@ router.get('/panel', async function(req, res) {
               '<form method="POST" action="' + ADMIN_URL + '/delete-mission" style="display:inline"><input type="hidden" name="_csrf" value="' + csrf + '"/><input type="hidden" name="mid" value="' + m.id + '"/><button type="submit" class="btn btn-red btn-sm">Delete</button></form>' +
             '</td></tr>';
         }).join('');
-
+const pinRequestRows = pinRequests.length === 0
+      ? ''
+      : '<hr><h2 style="text-align:left;margin-bottom:12px">PIN Requests (' + pinRequests.length + ')</h2>' +
+        pinRequests.map(function(pr) {
+          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)">' +
+            '<span style="font-size:14px;color:#fff">' + escape(pr.username) + '</span>' +
+            '<span>' +
+              '<form method="POST" action="' + ADMIN_URL + '/approve-pin" style="display:inline">' +
+                '<input type="hidden" name="_csrf" value="' + csrf + '"/>' +
+                '<input type="hidden" name="key" value="' + escape(pr.username) + '"/>' +
+                '<button type="submit" class="btn btn-green btn-sm">Approve</button>' +
+              '</form> ' +
+              '<form method="POST" action="' + ADMIN_URL + '/reject-pin" style="display:inline">' +
+                '<input type="hidden" name="_csrf" value="' + csrf + '"/>' +
+                '<input type="hidden" name="key" value="' + escape(pr.username) + '"/>' +
+                '<button type="submit" class="btn btn-red btn-sm">Reject</button>' +
+              '</form>' +
+            '</span>' +
+          '</div>';
+        }).join('');
     const userOptions    = allUsers.map(function(u) { return '<option value="' + escape(u.hive_name) + '">' + escape(u.hive_name) + '</option>'; }).join('');
     const missionOptions = allMissions.filter(function(m) { return m.status==='active'; })
       .map(function(m) { return '<option value="' + m.id + '">' + escape(m.title) + '</option>'; }).join('');
@@ -175,7 +208,8 @@ router.get('/panel', async function(req, res) {
         '<button type="submit" class="btn ' + (bcVote?'btn-red':'btn-green') + '">' + (bcVote?'Turn OFF':'Turn ON') + '</button>' +
       '</form>' +
 
-'<hr><h2 style="text-align:left;margin-bottom:12px">Users (' + allUsers.length + ')</h2>' +
+pinRequestRows +
+      '<hr><h2 style="text-align:left;margin-bottom:12px">Users (' + allUsers.length + ')</h2>' +
       '<p style="text-align:left;font-size:12px;color:#555;margin-bottom:8px">Showing top 20 by points. Download CSV for full list.</p>' +
       '<div style="overflow-x:auto"><table><tr><th>Name</th><th>Pts</th><th>Today</th><th>Actions</th></tr>' + userRows + '</table></div>' +
 
@@ -296,6 +330,38 @@ router.post('/reset-pin', async function(req, res) {
   if (!csrfOk(req, res)) return;
   await pool.query('UPDATE users SET pin_hash=NULL WHERE hive_name=$1', [req.body.key]);
   res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('PIN reset for ' + req.body.key));
+});
+
+function randomPin() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+router.post('/enable-pin', async function(req, res) {
+  if (!checkAdminSession(req, res)) return;
+  if (!csrfOk(req, res)) return;
+  const key = (req.body.key||'').trim().toLowerCase();
+  const pin = randomPin();
+  const hash = await bcrypt.hash(pin, 10);
+  await setUserPin(key, hash);
+  res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('PIN for ' + key + ' is: ' + pin + ' (give this to the user)'));
+});
+
+router.post('/approve-pin', async function(req, res) {
+  if (!checkAdminSession(req, res)) return;
+  if (!csrfOk(req, res)) return;
+  const key = (req.body.key||'').trim().toLowerCase();
+  const pin = randomPin();
+  const hash = await bcrypt.hash(pin, 10);
+  await setUserPin(key, hash);
+  await deletePinRequest(key);
+  res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Approved ' + key + ' - PIN is: ' + pin + ' (give this to the user)'));
+});
+
+router.post('/reject-pin', async function(req, res) {
+  if (!checkAdminSession(req, res)) return;
+  if (!csrfOk(req, res)) return;
+  await deletePinRequest((req.body.key||'').trim().toLowerCase());
+  res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Rejected: ' + req.body.key));
 });
 
 router.post('/delete-user', async function(req, res) {
