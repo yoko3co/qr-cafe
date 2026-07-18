@@ -37,7 +37,8 @@ router.get('/privacy', function(req, res) {
     '<div style="text-align:left">' +
     '<p style="color:#fbbf24;font-size:13px;font-weight:600">PL - Polityka Prywatnosci</p>' +
     '<p><strong>Administrator danych:</strong> Krolestwo bez Kresu</p>' +
-    '<p><strong>Co przechowujemy:</strong> Nazwe uzytkownika Hive, historie aktywnosci (wizyty, punkty, glosy), date ostatniej wizyty.</p>' +
+    '<p><strong>Co przechowujemy:</strong> Nazwe uzytkownika (Hive lub wybrana), historie aktywnosci (wizyty, punkty, glosy), date ostatniej wizyty. Dla kont zakladanych przez formularz: adres email (kontakt) oraz opcjonalnie imie.</p>' +
+    '<p><strong>Email i imie:</strong> Przechowywane wylacznie w celu zalozenia konta i kontaktu. Nie sa udostepniane osobom trzecim ani wykorzystywane do marketingu bez zgody.</p>' +
     '<p><strong>Cel:</strong> Wylacznie spolecznosciowy. Dane nie sa udostepniane osobom trzecim ani wykorzystywane komercyjnie.</p>' +
     '<p><strong>Czas przechowywania:</strong> Do usuniecia konta lub zamkniecia projektu.</p>' +
     '<p><strong>Twoje prawa:</strong> Wglad, poprawa, usuniecie danych. Skontaktuj sie przez Instagram lub Facebook.</p>' +
@@ -45,7 +46,8 @@ router.get('/privacy', function(req, res) {
     '<hr>' +
     '<p style="color:#fbbf24;font-size:13px;font-weight:600">EN - Privacy Policy</p>' +
     '<p><strong>Data controller:</strong> Krolestwo bez Kresu</p>' +
-    '<p><strong>What we store:</strong> Hive username, activity history (visits, points, votes), last visit date.</p>' +
+    '<p><strong>What we store:</strong> Username (Hive or chosen), activity history (visits, points, votes), last visit date. For accounts created via the form: email address (contact) and optionally a name.</p>' +
+    '<p><strong>Email and name:</strong> Stored only to create your account and for contact. Never shared with third parties or used for marketing without consent.</p>' +
     '<p><strong>Purpose:</strong> Community use only. Data is never shared with third parties or used commercially.</p>' +
     '<p><strong>Retention:</strong> Until account deletion or project closure.</p>' +
     '<p><strong>Your rights:</strong> Access, correct and delete your data. Contact us via Instagram or Facebook.</p>' +
@@ -91,7 +93,7 @@ router.get('/', function(req, res) {
     '<h1>QR Cafe</h1>' +
     '<h2>Witamy w Krolestwie!</h2>' +
     '<div id="msg"></div>' +
-    '<input type="text" id="uname" placeholder="Username" maxlength="30"/>' +
+    '<input type="text" id="uname" placeholder="Username or email" maxlength="100"/>' +
     '<input type="password" id="pin" placeholder="PIN" maxlength="8"/>' +
     '<button class="btn btn-gold" onclick="doPinLogin()">Login</button>' +
     '<a href="/register" class="link">New here? Create account</a>' +
@@ -155,17 +157,22 @@ router.get('/register', function(req, res) {
   const sent = req.query.sent === '1';
   res.send(page('Claim Account',
     '<h1>Claim Account</h1>' +
-    '<h2>Get a PIN from staff</h2>' +
+    '<h2>Request access</h2>' +
     (sent ? '<div class="success">Request sent! Ask staff at Krolestwo to approve it and give you your PIN.</div>' : '') +
     '<div id="msg"></div>' +
-    '<input type="text" id="uname" placeholder="Your username" maxlength="30"/>' +
+    '<input type="text" id="uname" placeholder="Username (required)" maxlength="30"/>' +
+    '<input type="email" id="email" placeholder="Email (required)" maxlength="100"/>' +
+    '<input type="text" id="fullname" placeholder="Name (optional)" maxlength="60"/>' +
     '<button class="btn btn-gold" onclick="doClaim()">Request PIN</button>' +
     '<a href="/login-pin" class="link">Already have a PIN? Login</a>' +
     '<script>' +
     'function doClaim(){' +
       'var u=document.getElementById("uname").value.trim().toLowerCase();' +
+      'var e=document.getElementById("email").value.trim();' +
+      'var n=document.getElementById("fullname").value.trim();' +
       'if(!u||!/^[a-z0-9._-]{3,30}$/.test(u)){document.getElementById("msg").innerHTML="<div class=\\"error\\">Username: 3-30 chars, a-z 0-9 . _ -</div>";return;}' +
-      'fetch("/claim-pin",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u})})' +
+      'if(!e||!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(e)){document.getElementById("msg").innerHTML="<div class=\\"error\\">Enter a valid email</div>";return;}' +
+      'fetch("/claim-pin",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,email:e,fullName:n})})' +
         '.then(function(x){return x.json();})' +
         '.then(function(d){' +
           'if(d.ok){window.location.href="/register?sent=1";}' +
@@ -178,12 +185,15 @@ router.get('/register', function(req, res) {
 
 router.post('/claim-pin', async function(req, res) {
   const username = (req.body.username||'').trim().toLowerCase();
+  const email    = (req.body.email||'').trim();
+  const fullName = (req.body.fullName||'').trim().slice(0,60);
   if (!/^[a-z0-9._-]{3,30}$/.test(username)) return res.json({ ok:false, error:'Invalid username' });
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.json({ ok:false, error:'Invalid email' });
   if (isAdmin(username)) return res.json({ ok:false, error:'This name is reserved' });
   const { pool, addPinRequest } = require('../db/pool');
   const existing = await pool.query('SELECT pin_hash FROM users WHERE hive_name=$1', [username]);
   if (existing.rows[0] && existing.rows[0].pin_hash) return res.json({ ok:false, error:'This account already has a PIN. Try logging in.' });
-  await addPinRequest(username);
+  await addPinRequest(username, email, fullName);
   res.json({ ok:true });
 });
 
@@ -194,7 +204,7 @@ router.get('/login-pin', function(req, res) {
     '<h1>Login</h1>' +
     '<h2>Username + PIN</h2>' +
     '<div id="msg"></div>' +
-    '<input type="text" id="uname" placeholder="Username" maxlength="30"/>' +
+    '<input type="text" id="uname" placeholder="Username or email" maxlength="100"/>' +
     '<input type="password" id="pin" placeholder="PIN" maxlength="8"/>' +
     '<button class="btn btn-gold" onclick="doLogin()">Login</button>' +
     '<a href="/register" class="link">Need an account? Register</a>' +
@@ -216,15 +226,21 @@ router.get('/login-pin', function(req, res) {
 });
 
 router.post('/login-pin-auth', async function(req, res) {
-  const username = (req.body.username||'').trim().toLowerCase();
-  const pin      = (req.body.pin||'').trim();
-  if (!username || !pin) return res.json({ ok:false, error:'Missing fields' });
-  const { pool } = require('../db/pool');
-  const r = await pool.query('SELECT pin_hash FROM users WHERE hive_name=$1', [username]);
-  if (!r.rows[0] || !r.rows[0].pin_hash) return res.json({ ok:false, error:'Invalid username or PIN' });
-  const ok = await bcrypt.compare(pin, r.rows[0].pin_hash);
-  if (!ok) return res.json({ ok:false, error:'Invalid username or PIN' });
-  res.cookie('userToken', username, { httpOnly:true, sameSite:'strict', maxAge:12*60*60*1000 });
+  const login = (req.body.username||'').trim().toLowerCase();
+  const pin   = (req.body.pin||'').trim();
+  if (!login || !pin) return res.json({ ok:false, error:'Missing fields' });
+  const { pool, getUserByEmail } = require('../db/pool');
+  let account = null;
+  if (login.indexOf('@') !== -1) {
+    account = await getUserByEmail(login);
+  } else {
+    const r = await pool.query('SELECT hive_name, pin_hash FROM users WHERE hive_name=$1', [login]);
+    account = r.rows[0] || null;
+  }
+  if (!account || !account.pin_hash) return res.json({ ok:false, error:'Invalid login or PIN' });
+  const ok = await bcrypt.compare(pin, account.pin_hash);
+  if (!ok) return res.json({ ok:false, error:'Invalid login or PIN' });
+  res.cookie('userToken', account.hive_name, { httpOnly:true, sameSite:'strict', maxAge:12*60*60*1000 });
   res.json({ ok:true });
 });
 
