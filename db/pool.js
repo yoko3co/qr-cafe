@@ -45,7 +45,6 @@ async function initDB() {
         stopped_at BIGINT DEFAULT 0
       );
     `);
-    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_hash TEXT DEFAULT NULL');
     await pool.query(`
       CREATE TABLE IF NOT EXISTS allowed_names (
         name TEXT PRIMARY KEY
@@ -70,17 +69,34 @@ async function initDB() {
         PRIMARY KEY (hive_name, mission_id)
       );
     `);
-await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS events_today JSONB DEFAULT \'{}\'');
-    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS legal_version TEXT DEFAULT NULL');
-await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_hash TEXT DEFAULT NULL');
-await pool.query('UPDATE polls SET blockchain=false WHERE blockchain=true');
     await pool.query(`
       CREATE TABLE IF NOT EXISTS settings (
         key   TEXT PRIMARY KEY,
         value TEXT
       );
     `);
-  await seedRCR();
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS pin_requests (
+        username    TEXT PRIMARY KEY,
+        email       TEXT DEFAULT NULL,
+        full_name   TEXT DEFAULT NULL,
+        created_at  BIGINT DEFAULT 0
+      );
+    `);
+
+    // Column migrations (safe to run every start)
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS events_today JSONB DEFAULT \'{}\'');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS legal_version TEXT DEFAULT NULL');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS rcr_balance INTEGER DEFAULT 0');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_hash TEXT DEFAULT NULL');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT DEFAULT NULL');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name TEXT DEFAULT NULL');
+    await pool.query('ALTER TABLE pin_requests ADD COLUMN IF NOT EXISTS email TEXT DEFAULT NULL');
+    await pool.query('ALTER TABLE pin_requests ADD COLUMN IF NOT EXISTS full_name TEXT DEFAULT NULL');
+    await pool.query('UPDATE polls SET blockchain=false WHERE blockchain=true');
+
+    await seedRCR();
+
     const { allowedNames } = require('../allowedNames');
     for (const name of allowedNames) {
       await pool.query('INSERT INTO allowed_names (name) VALUES ($1) ON CONFLICT DO NOTHING', [name]);
@@ -93,7 +109,7 @@ await pool.query('UPDATE polls SET blockchain=false WHERE blockchain=true');
 
 async function seedRCR() {
   try {
-    const { RCR_SEED } = require('../rcr'); 
+    const { RCR_SEED } = require('../rcr');
     for (const name of Object.keys(RCR_SEED)) {
       await pool.query(
         'INSERT INTO users (hive_name, rcr_balance) VALUES ($1, $2) ON CONFLICT (hive_name) DO UPDATE SET rcr_balance=$2 WHERE users.rcr_balance=0',
@@ -213,10 +229,41 @@ async function completeMission(name, mid) {
   );
 }
 
+// ==================== PIN / EMAIL ====================
+
+async function addPinRequest(username, email, fullName) {
+  await pool.query(
+    'INSERT INTO pin_requests (username, email, full_name, created_at) VALUES ($1,$2,$3,$4) ON CONFLICT (username) DO UPDATE SET email=$2, full_name=$3',
+    [username, email||null, fullName||null, Date.now()]
+  );
+}
+
+async function getPinRequests() {
+  const r = await pool.query('SELECT * FROM pin_requests ORDER BY created_at ASC');
+  return r.rows;
+}
+
+async function deletePinRequest(username) {
+  await pool.query('DELETE FROM pin_requests WHERE username=$1', [username]);
+}
+
+async function setUserPin(username, hash, email, fullName) {
+  await pool.query(
+    'INSERT INTO users (hive_name, pin_hash, email, full_name) VALUES ($1,$2,$3,$4) ON CONFLICT (hive_name) DO UPDATE SET pin_hash=$2, email=COALESCE($3,users.email), full_name=COALESCE($4,users.full_name)',
+    [username, hash, email||null, fullName||null]
+  );
+}
+
+async function getUserByEmail(email) {
+  const r = await pool.query('SELECT * FROM users WHERE email=$1 AND pin_hash IS NOT NULL LIMIT 1', [email]);
+  return r.rows[0] || null;
+}
+
 module.exports = {
   pool, initDB, seedRCR,
   getUser, upsertUser, getAllUsers, deleteUser,
   getAllowedNames, addAllowedName, removeAllowedName,
   getAllPolls, getPoll, savePoll, deletePoll, savePastPoll, getPastPolls,
   getAllMissions, getMission, saveMission, deleteMission, getUserMissions, completeMission,
+  addPinRequest, getPinRequests, deletePinRequest, setUserPin, getUserByEmail,
 };
