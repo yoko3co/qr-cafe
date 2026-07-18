@@ -166,7 +166,9 @@ const pinRequestRows = pinRequests.length === 0
       : '<hr><h2 style="text-align:left;margin-bottom:12px">PIN Requests (' + pinRequests.length + ')</h2>' +
         pinRequests.map(function(pr) {
           return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)">' +
-            '<span style="font-size:14px;color:#fff">' + escape(pr.username) + '</span>' +
+            '<span style="font-size:14px;color:#fff;text-align:left">' + escape(pr.username) +
+              '<br><span style="font-size:12px;color:#777">' + escape(pr.email||'no email') + (pr.full_name ? ' &middot; ' + escape(pr.full_name) : '') + '</span>' +
+            '</span>' +
             '<span>' +
               '<form method="POST" action="' + ADMIN_URL + '/approve-pin" style="display:inline">' +
                 '<input type="hidden" name="_csrf" value="' + csrf + '"/>' +
@@ -350,9 +352,12 @@ router.post('/approve-pin', async function(req, res) {
   if (!checkAdminSession(req, res)) return;
   if (!csrfOk(req, res)) return;
   const key = (req.body.key||'').trim().toLowerCase();
+  const reqRow = await pool.query('SELECT email, full_name FROM pin_requests WHERE username=$1', [key]);
+  const email = reqRow.rows[0] ? reqRow.rows[0].email : null;
+  const fullName = reqRow.rows[0] ? reqRow.rows[0].full_name : null;
   const pin = randomPin();
   const hash = await bcrypt.hash(pin, 10);
-  await setUserPin(key, hash);
+  await setUserPin(key, hash, email, fullName);
   await deletePinRequest(key);
   res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Approved ' + key + ' - PIN is: ' + pin + ' (give this to the user)'));
 });
