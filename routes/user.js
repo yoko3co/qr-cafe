@@ -328,6 +328,29 @@ router.get('/profile', async function(req, res) {
       '<h2 style="text-align:left;font-size:14px;color:#666;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">My Votes</h2>' +
       '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:12px 16px;margin-bottom:16px;text-align:left">' + pollsHtml + '</div>' +
 
+      '<h2 style="text-align:left;font-size:14px;color:#666;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">My Details (optional)</h2>' +
+      '<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;margin-bottom:16px;text-align:left">' +
+        '<p style="font-size:12px;color:#666;margin:0 0 12px">Used only for community contact, postcards and gifts. Never shared.</p>' +
+        '<div id="dmsg"></div>' +
+        '<input type="text" id="d_name" placeholder="Name" maxlength="60" value="' + escape(user.full_name||'') + '"/>' +
+        '<input type="tel" id="d_phone" placeholder="Phone" maxlength="30" value="' + escape(user.phone||'') + '"/>' +
+        '<input type="text" id="d_address" placeholder="Address (for postcards/gifts)" maxlength="200" value="' + escape(user.address||'') + '"/>' +
+        '<input type="text" id="d_ig" placeholder="Instagram" maxlength="60" value="' + escape(user.instagram||'') + '"/>' +
+        '<input type="text" id="d_fb" placeholder="Facebook" maxlength="60" value="' + escape(user.facebook||'') + '"/>' +
+        '<button class="btn btn-gold" onclick="saveDetails()">Save details</button>' +
+      '</div>' +
+      '<script>' +
+      'function saveDetails(){' +
+        'var b={fullName:document.getElementById("d_name").value.trim(),phone:document.getElementById("d_phone").value.trim(),address:document.getElementById("d_address").value.trim(),instagram:document.getElementById("d_ig").value.trim(),facebook:document.getElementById("d_fb").value.trim()};' +
+        'fetch("/save-details",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)})' +
+          '.then(function(x){return x.json();})' +
+          '.then(function(d){' +
+            'if(d.ok){document.getElementById("dmsg").innerHTML="<div class=\\"success\\">Saved</div>";}' +
+            'else{document.getElementById("dmsg").innerHTML="<div class=\\"error\\">"+(d.error||"Error")+"</div>";}' +
+          '});' +
+      '}' +
+      '</script>' +
+
       navBar()
     ));
   } catch (e) {
@@ -1299,6 +1322,25 @@ router.get('/music/:id', async function(req, res) {
     ));
   } catch (e) {
     res.send(page('Error', '<h1>Error</h1><p>' + escape(e.message) + '</p>'));
+  }
+});
+
+router.post('/save-details', async function(req, res) {
+  const name = getUserFromCookie(req);
+  if (!name) return res.json({ ok:false, error:'Not logged in' });
+  const fullName  = (req.body.fullName||'').trim().slice(0,60);
+  const phone     = (req.body.phone||'').trim().slice(0,30);
+  const address   = (req.body.address||'').trim().slice(0,200);
+  const instagram = (req.body.instagram||'').trim().slice(0,60);
+  const facebook  = (req.body.facebook||'').trim().slice(0,60);
+  try {
+    await pool.query(
+      'UPDATE users SET full_name=$1, phone=$2, address=$3, instagram=$4, facebook=$5 WHERE hive_name=$6',
+      [fullName||null, phone||null, address||null, instagram||null, facebook||null, name]
+    );
+    res.json({ ok:true });
+  } catch (e) {
+    res.json({ ok:false, error:e.message });
   }
 });
 
