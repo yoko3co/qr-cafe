@@ -244,6 +244,57 @@ router.post('/login-pin-auth', async function(req, res) {
   res.json({ ok:true });
 });
 
+
+
+router.get('/change-pin', function(req, res) {
+  const name = req.cookies && req.cookies.userToken;
+  if (!name) return res.redirect('/');
+  const { navBar } = require('../views/layout');
+  const done = req.query.done === '1';
+  res.send(page('Change PIN',
+    '<h1>Change PIN</h1>' +
+    '<h2>' + escape(name) + '</h2>' +
+    (done ? '<div class="success">PIN changed successfully.</div>' : '') +
+    '<div id="msg"></div>' +
+    '<input type="password" id="oldpin" placeholder="Current PIN" maxlength="8"/>' +
+    '<input type="password" id="newpin" placeholder="New PIN (4-8 digits)" maxlength="8"/>' +
+    '<input type="password" id="newpin2" placeholder="Repeat new PIN" maxlength="8"/>' +
+    '<button class="btn btn-gold" onclick="doChange()">Change PIN</button>' +
+    navBar() +
+    '<script>' +
+    'function doChange(){' +
+      'var o=document.getElementById("oldpin").value.trim();' +
+      'var n=document.getElementById("newpin").value.trim();' +
+      'var n2=document.getElementById("newpin2").value.trim();' +
+      'if(!/^[0-9]{4,8}$/.test(n)){document.getElementById("msg").innerHTML="<div class=\\"error\\">New PIN must be 4-8 digits</div>";return;}' +
+      'if(n!==n2){document.getElementById("msg").innerHTML="<div class=\\"error\\">New PINs do not match</div>";return;}' +
+      'fetch("/change-pin-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({oldPin:o,newPin:n})})' +
+        '.then(function(x){return x.json();})' +
+        '.then(function(d){' +
+          'if(d.ok){window.location.href="/change-pin?done=1";}' +
+          'else{document.getElementById("msg").innerHTML="<div class=\\"error\\">"+d.error+"</div>";}' +
+        '});' +
+    '}' +
+    '</script>'
+  ));
+});
+
+router.post('/change-pin-auth', async function(req, res) {
+  const name   = req.cookies && req.cookies.userToken;
+  if (!name) return res.json({ ok:false, error:'Not logged in' });
+  const oldPin = (req.body.oldPin||'').trim();
+  const newPin = (req.body.newPin||'').trim();
+  if (!/^[0-9]{4,8}$/.test(newPin)) return res.json({ ok:false, error:'New PIN must be 4-8 digits' });
+  const { pool } = require('../db/pool');
+  const r = await pool.query('SELECT pin_hash FROM users WHERE hive_name=$1', [name]);
+  if (!r.rows[0] || !r.rows[0].pin_hash) return res.json({ ok:false, error:'This account has no PIN set' });
+  const ok = await bcrypt.compare(oldPin, r.rows[0].pin_hash);
+  if (!ok) return res.json({ ok:false, error:'Current PIN is incorrect' });
+  const hash = await bcrypt.hash(newPin, 10);
+  await pool.query('UPDATE users SET pin_hash=$1 WHERE hive_name=$2', [hash, name]);
+  res.json({ ok:true });
+});
+
 // ==================== ADMIN LOGIN ====================
 
 router.get('/hallmann', function(req, res) {
