@@ -49,7 +49,9 @@ router.get('/home', async function(req, res) {
   if (!name) return res.redirect('/');
   try {
     const names = await getAllowedNames();
-    if (!names.has(name.toLowerCase()) && !isAdmin(name)) {
+    const existingUser = await getUser(name);
+    const hasPin = existingUser && existingUser.pin_hash;
+    if (!names.has(name.toLowerCase()) && !isAdmin(name) && !hasPin) {
       return res.send(page('Access Denied',
         '<h1>Access Denied</h1><p>Your account is not on the guest list.</p><a class="link" href="/">Back</a>'
       ));
