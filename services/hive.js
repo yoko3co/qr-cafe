@@ -61,6 +61,23 @@ async function syncRCR() {
       const op = item[1].op;
       if (op[0] !== 'transfer') continue;
       const memo = op[1].memo || '';
+
+      // Batch format: RCR:BATCH:user-spent/newtotal,user-spent/newtotal
+      const batch = memo.match(/^RCR:BATCH:(.+)$/i);
+      if (batch) {
+        const entries = batch[1].split(',');
+        for (const entry of entries) {
+          const m = entry.trim().match(/^(\S+?)-\d+\/(\d+)$/);
+          if (!m) continue;
+          const uname = m[1].toLowerCase().replace('@', '');
+          const total = parseInt(m[2]);
+          await pool.query('UPDATE users SET rcr_balance=$1 WHERE hive_name=$2', [total, uname]);
+          console.log('RCR batch updated:', uname, total);
+        }
+        continue;
+      }
+
+      // Single format: username -X RCR / suma: Y RCR
       const match = memo.match(/^(\S+)\s+[\+\-]\d+\s+RCR\s*\/\s*suma:\s*(\d+)\s+RCR/i);
       if (!match) continue;
       const username = match[1].toLowerCase().replace('@', '');
