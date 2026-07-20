@@ -337,40 +337,63 @@ router.post('/admin-auth', function(req, res) {
 
 // ==================== DRINKS ====================
 
-router.get('/drinks', function(req, res) {
+router.get('/drinks', async function(req, res) {
   const name = req.cookies && req.cookies.userToken;
   if (!name) return res.redirect('/');
   const { navBar } = require('../views/layout');
-  res.send(page('Buy a Drink',
-    '<h1>Buy a Drink</h1>' +
-    '<h2>Support Krolestwo with RCRT</h2>' +
-    '<div class="section-card" style="text-align:left;margin-bottom:16px">' +
-      '<div class="row-item"><span>Drink</span><span style="color:#fbbf24;font-weight:700">4 RCRT</span></div>' +
-      '<div class="row-item"><span>Token</span><span style="color:#34d399">RCRT</span></div>' +
-      '<div class="row-item"><span>Sends to</span><span style="color:#aaa">rcr account</span></div>' +
-    '</div>' +
-    '<div id="status" style="font-size:13px;color:#aaa;margin-bottom:12px"></div>' +
-    '<button class="btn btn-gold" id="buy-btn" onclick="buyDrink()">Buy a drink - 0.001 HIVE</button>' +
-    '<div id="confirm" style="display:none;margin-top:16px"><div class="success">Cheers! Show this screen to staff!</div></div>' +
-    '<script>' +
-    'function buyDrink(){' +
-      'if(typeof window.hive_keychain==="undefined"){alert("Open in Keychain browser.");return;}' +
-      'document.getElementById("buy-btn").disabled=true;' +
-      'document.getElementById("status").innerText="Waiting for Keychain...";' +
-      'window.hive_keychain.requestTransfer("' + name + '","rcr","0.001","drink","HIVE",function(r){' +
-        'if(r.success){' +
-          'document.getElementById("confirm").style.display="block";' +
-          'document.getElementById("buy-btn").style.display="none";' +
-          'document.getElementById("status").innerText="";' +
-        '}else{' +
-          'document.getElementById("status").innerText="Error: "+r.message;' +
-          'document.getElementById("buy-btn").disabled=false;' +
-        '}' +
-      '});' +
-    '}' +
-    '</script>' +
-    navBar()
-  ));
+  const { pool, getDrinkItems, getUser } = require('../db/pool');
+  try {
+    const user = await getUser(name);
+    const confirmed = (user && user.rcr_balance) || 0;
+    const pending   = (user && user.rcr_pending) || 0;
+    const available = confirmed - pending;
+    const items = await getDrinkItems(true);
+
+    const done = req.query.done === '1';
+    const err  = req.query.err ? decodeURIComponent(req.query.err) : '';
+
+    const itemsHtml = items.length === 0
+      ? '<p style="color:#555;font-size:13px">No items available right now.</p>'
+      : items.map(function(it) {
+          const canAfford = available >= it.price;
+          return '<form method="POST" action="/spend-drink" style="margin-bottom:8px">' +
+            '<input type="hidden" name="item_id" value="' + it.id + '"/>' +
+            '<button type="submit" class="btn ' + (canAfford?'btn-gold':'btn-gray') + '"' + (canAfford?'':' disabled style="opacity:0.4"') + '>' +
+              escape(it.name) + ' - ' + it.price + ' RCR' +
+            '</button>' +
+          '</form>';
+        }).join('');
+
+    res.send(page('Buy a Drink',
+      '<h1>Buy a Drink</h1>' +
+      '<h2>Available: ' + available + ' RCR</h2>' +
+      (done ? '<div class="success">Added! Show this to staff. It will be confirmed later.</div>' : '') +
+      (err ? '<div class="error">' + escape(err) + '</div>' : '') +
+      (pending > 0 ? '<div class="info" style="font-size:13px">' + pending + ' RCR pending confirmation</div>' : '') +
+      '<div style="margin-top:12px">' + itemsHtml + '</div>' +
+      navBar()
+    ));
+  } catch (e) {
+    res.send(page('Error', '<h1>Error</h1><p>' + escape(e.message) + '</p>'));
+  }
+});
+
+router.post('/spend-drink', async function(req, res) {
+  const name = req.cookies && req.cookies.userToken;
+  if (!name) return res.redirect('/');
+  const { pool, getUser, getDrinkItems, queueSpend } = require('../db/pool');
+  try {
+    const items = await getDrinkItems(true);
+    const item = items.find(function(i) { return String(i.id) === String(req.body.item_id); });
+    if (!item) return res.redirect('/drinks?err=' + encodeURIComponent('Item not found'));
+    const user = await getUser(name);
+    const available = ((user && user.rcr_balance) || 0) - ((user && user.rcr_pending) || 0);
+    if (available < item.price) return res.redirect('/drinks?err=' + encodeURIComponent('Not enough available RCR'));
+    await queueSpend(name, item.name, item.price);
+    res.redirect('/drinks?done=1');
+  } catch (e) {
+    res.redirect('/drinks?err=' + encodeURIComponent(e.message));
+  }
 });
 
 // ==================== LOGOUT ====================

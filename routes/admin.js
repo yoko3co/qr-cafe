@@ -12,6 +12,8 @@ const {
   getAllMissions, getMission, saveMission, deleteMission,
   getUserMissions, completeMission,
   getPinRequests, deletePinRequest, setUserPin,
+  getDrinkItems, addDrinkItem, deleteDrinkItem, toggleDrinkItem,
+  getSpendQueue, rejectSpend, clearSpendQueue,
 }                                                                       = require('../db/pool');
 const bcrypt = require('bcryptjs');
 const { checkAdminSession, generateCsrf, validateCsrf }                = require('../middleware/session');
@@ -80,7 +82,9 @@ router.get('/panel', async function(req, res) {
     const allPastPolls = await getPastPolls();
     const allowedNames = await getAllowedNames();
    const allMissions  = await getAllMissions();
-    const pinRequests  = await getPinRequests();
+   const pinRequests  = await getPinRequests();
+    const drinkItems   = await getDrinkItems(false);
+    const spendQueue   = await getSpendQueue();
 
     const displayUsers = allUsers.slice(0, 20);
     const userRows = allUsers.length === 0
@@ -210,7 +214,38 @@ const pinRequestRows = pinRequests.length === 0
         '<button type="submit" class="btn ' + (bcVote?'btn-red':'btn-green') + '">' + (bcVote?'Turn OFF':'Turn ON') + '</button>' +
       '</form>' +
 
-pinRequestRows +
+pinRequestRows + 
+'<hr><h2 style="text-align:left;margin-bottom:12px">Drink Items</h2>' +
+      '<div style="text-align:left;margin-bottom:12px">' +
+        (drinkItems.length === 0 ? '<p style="color:#555;font-size:13px">No items yet.</p>' :
+          drinkItems.map(function(it) {
+            return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">' +
+              '<span style="font-size:14px;color:' + (it.active?'#fff':'#666') + '">' + escape(it.name) + ' - ' + it.price + ' RCR' + (it.active?'':' (hidden)') + '</span>' +
+              '<span>' +
+                '<form method="POST" action="' + ADMIN_URL + '/toggle-item" style="display:inline"><input type="hidden" name="_csrf" value="' + csrf + '"/><input type="hidden" name="id" value="' + it.id + '"/><button class="btn btn-gray btn-sm">' + (it.active?'Hide':'Show') + '</button></form> ' +
+                '<form method="POST" action="' + ADMIN_URL + '/delete-item" style="display:inline" onsubmit="return confirm(\'Delete ' + escape(it.name) + '?\')"><input type="hidden" name="_csrf" value="' + csrf + '"/><input type="hidden" name="id" value="' + it.id + '"/><button class="btn btn-red btn-sm">Delete</button></form>' +
+              '</span>' +
+            '</div>';
+          }).join('')) +
+      '</div>' +
+      '<form method="POST" action="' + ADMIN_URL + '/add-item" style="display:flex;gap:8px;margin-bottom:16px">' +
+        '<input type="hidden" name="_csrf" value="' + csrf + '"/>' +
+        '<input type="text" name="name" placeholder="Item name" required style="flex:2;margin:0"/>' +
+        '<input type="number" name="price" placeholder="RCR" required min="1" style="flex:1;margin:0"/>' +
+        '<button class="btn btn-green" style="width:auto;padding:8px 16px;margin:0">Add</button>' +
+      '</form>' +
+
+      '<hr><h2 style="text-align:left;margin-bottom:12px">Pending Spends (' + spendQueue.length + ')</h2>' +
+      '<div style="text-align:left;margin-bottom:12px">' +
+        (spendQueue.length === 0 ? '<p style="color:#555;font-size:13px">Nothing pending.</p>' :
+          spendQueue.map(function(s) {
+            return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">' +
+              '<span style="font-size:13px;color:#aaa">' + escape(s.username) + ' - ' + escape(s.item_name) + ' (' + s.amount + ' RCR)</span>' +
+              '<form method="POST" action="' + ADMIN_URL + '/reject-spend" style="display:inline"><input type="hidden" name="_csrf" value="' + csrf + '"/><input type="hidden" name="id" value="' + s.id + '"/><button class="btn btn-red btn-sm">Reject</button></form>' +
+            '</div>';
+          }).join('')) +
+      '</div>' +
+      (spendQueue.length > 0 ? '<form method="POST" action="' + ADMIN_URL + '/clear-spends" onsubmit="return confirm(\'Clear ALL pending spends? This unfreezes everyone.\')" style="margin-bottom:16px"><input type="hidden" name="_csrf" value="' + csrf + '"/><button class="btn btn-gold">Soft reset - clear all pending</button></form>' : '') +
       '<hr><h2 style="text-align:left;margin-bottom:12px">Users (' + allUsers.length + ')</h2>' +
       '<p style="text-align:left;font-size:12px;color:#555;margin-bottom:8px">Showing top 20 by points. Download CSV for full list.</p>' +
       '<div style="overflow-x:auto"><table><tr><th>Name</th><th>Pts</th><th>Today</th><th>Actions</th></tr>' + userRows + '</table></div>' +
@@ -326,7 +361,42 @@ router.post('/reset-checkin', async function(req, res) {
   await upsertUser(req.body.key, user);
   res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Check-in reset for ' + req.body.key));
 });
+router.post('/add-item', async function(req, res) {
+  if (!checkAdminSession(req, res)) return;
+  if (!csrfOk(req, res)) return;
+  const name = (req.body.name||'').trim().slice(0,40);
+  const price = Math.max(1, parseInt(req.body.price)||1);
+  if (name) await addDrinkItem(name, price);
+  res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Item added'));
+});
 
+router.post('/delete-item', async function(req, res) {
+  if (!checkAdminSession(req, res)) return;
+  if (!csrfOk(req, res)) return;
+  await deleteDrinkItem(parseInt(req.body.id));
+  res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Item deleted'));
+});
+
+router.post('/toggle-item', async function(req, res) {
+  if (!checkAdminSession(req, res)) return;
+  if (!csrfOk(req, res)) return;
+  await toggleDrinkItem(parseInt(req.body.id));
+  res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Item updated'));
+});
+
+router.post('/reject-spend', async function(req, res) {
+  if (!checkAdminSession(req, res)) return;
+  if (!csrfOk(req, res)) return;
+  await rejectSpend(parseInt(req.body.id));
+  res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Spend rejected and unfrozen'));
+});
+
+router.post('/clear-spends', async function(req, res) {
+  if (!checkAdminSession(req, res)) return;
+  if (!csrfOk(req, res)) return;
+  await clearSpendQueue();
+  res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('All pending cleared'));
+});
 router.post('/reset-pin', async function(req, res) {
   if (!checkAdminSession(req, res)) return;
   if (!csrfOk(req, res)) return;

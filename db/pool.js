@@ -91,9 +91,31 @@ async function initDB() {
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_hash TEXT DEFAULT NULL');
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT DEFAULT NULL');
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name TEXT DEFAULT NULL');
+   await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT NULL');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS address TEXT DEFAULT NULL');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS instagram TEXT DEFAULT NULL');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS facebook TEXT DEFAULT NULL');
     await pool.query('ALTER TABLE pin_requests ADD COLUMN IF NOT EXISTS email TEXT DEFAULT NULL');
     await pool.query('ALTER TABLE pin_requests ADD COLUMN IF NOT EXISTS full_name TEXT DEFAULT NULL');
     await pool.query('UPDATE polls SET blockchain=false WHERE blockchain=true');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS rcr_pending INTEGER DEFAULT 0');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS drink_items (
+        id     SERIAL PRIMARY KEY,
+        name   TEXT NOT NULL,
+        price  INTEGER NOT NULL,
+        active BOOLEAN DEFAULT true
+      );
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS spend_queue (
+        id         SERIAL PRIMARY KEY,
+        username   TEXT NOT NULL,
+        item_name  TEXT NOT NULL,
+        amount     INTEGER NOT NULL,
+        created_at BIGINT DEFAULT 0
+      );
+    `);
 
     await seedRCR();
 
@@ -259,6 +281,47 @@ async function getUserByEmail(email) {
   return r.rows[0] || null;
 }
 
+async function getDrinkItems(activeOnly) {
+  const q = activeOnly ? 'SELECT * FROM drink_items WHERE active=true ORDER BY price ASC' : 'SELECT * FROM drink_items ORDER BY price ASC';
+  const r = await pool.query(q);
+  return r.rows;
+}
+
+async function addDrinkItem(name, price) {
+  await pool.query('INSERT INTO drink_items (name, price, active) VALUES ($1,$2,true)', [name, price]);
+}
+
+async function deleteDrinkItem(id) {
+  await pool.query('DELETE FROM drink_items WHERE id=$1', [id]);
+}
+
+async function toggleDrinkItem(id) {
+  await pool.query('UPDATE drink_items SET active = NOT active WHERE id=$1', [id]);
+}
+
+async function queueSpend(username, itemName, amount) {
+  await pool.query('INSERT INTO spend_queue (username, item_name, amount, created_at) VALUES ($1,$2,$3,$4)', [username, itemName, amount, Date.now()]);
+  await pool.query('UPDATE users SET rcr_pending = COALESCE(rcr_pending,0) + $1 WHERE hive_name=$2', [amount, username]);
+}
+
+async function getSpendQueue() {
+  const r = await pool.query('SELECT * FROM spend_queue ORDER BY created_at ASC');
+  return r.rows;
+}
+
+async function rejectSpend(id) {
+  const r = await pool.query('SELECT username, amount FROM spend_queue WHERE id=$1', [id]);
+  if (r.rows[0]) {
+    await pool.query('UPDATE users SET rcr_pending = GREATEST(0, COALESCE(rcr_pending,0) - $1) WHERE hive_name=$2', [r.rows[0].amount, r.rows[0].username]);
+    await pool.query('DELETE FROM spend_queue WHERE id=$1', [id]);
+  }
+}
+
+async function clearSpendQueue() {
+  await pool.query('DELETE FROM spend_queue');
+  await pool.query('UPDATE users SET rcr_pending = 0');
+}
+
 module.exports = {
   pool, initDB, seedRCR,
   getUser, upsertUser, getAllUsers, deleteUser,
@@ -266,4 +329,5 @@ module.exports = {
   getAllPolls, getPoll, savePoll, deletePoll, savePastPoll, getPastPolls,
   getAllMissions, getMission, saveMission, deleteMission, getUserMissions, completeMission,
   addPinRequest, getPinRequests, deletePinRequest, setUserPin, getUserByEmail,
+  getDrinkItems, addDrinkItem, deleteDrinkItem, toggleDrinkItem, queueSpend, getSpendQueue, rejectSpend, clearSpendQueue,
 };
