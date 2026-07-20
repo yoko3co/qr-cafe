@@ -32,6 +32,11 @@ async function fetchAllowedNames() {
 
 async function syncRCR() {
   try {
+    const pausedR = await pool.query('SELECT value FROM settings WHERE key=$1', ['sync_paused']);
+    if (pausedR.rows[0] && pausedR.rows[0].value === '1') {
+      console.log('RCR sync paused - skipping');
+      return;
+    }
     const lastR = await pool.query('SELECT value FROM settings WHERE key=$1', ['rcr_last_seq']);
     const lastSeq = lastR.rows[0] ? parseInt(lastR.rows[0].value) : 0;
 

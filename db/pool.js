@@ -101,6 +101,13 @@ async function initDB() {
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS rcr_pending INTEGER DEFAULT 0');
     await pool.query('ALTER TABLE spend_queue ADD COLUMN IF NOT EXISTS settle_ref TEXT DEFAULT NULL');
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS balance_snapshot (
+        hive_name    TEXT PRIMARY KEY,
+        rcr_balance  INTEGER DEFAULT 0,
+        rcr_pending  INTEGER DEFAULT 0
+      );
+    `);
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS drink_items (
         id     SERIAL PRIMARY KEY,
         name   TEXT NOT NULL,
@@ -350,6 +357,46 @@ async function getOpenSettlement() {
   return r.rows[0] ? r.rows[0].settle_ref : null;
 }
 
+async function saveSnapshot() {
+  await pool.query('DELETE FROM balance_snapshot');
+  await pool.query('INSERT INTO balance_snapshot (hive_name, rcr_balance, rcr_pending) SELECT hive_name, COALESCE(rcr_balance,0), COALESCE(rcr_pending,0) FROM users');
+}
+
+async function restoreSnapshot() {
+  await pool.query('UPDATE users u SET rcr_balance = s.rcr_balance, rcr_pending = s.rcr_pending FROM balance_snapshot s WHERE u.hive_name = s.hive_name');
+  await pool.query('DELETE FROM spend_queue');
+}
+
+async function hasSnapshot() {
+  const r = await pool.query('SELECT COUNT(*) FROM balance_snapshot');
+  return parseInt(r.rows[0].count) > 0;
+}
+
+async function simulateSettlement(ref) {
+  // Apply the same effect the batch memo would have, locally, without posting
+  const r = await pool.query('SELECT username, SUM(amount) AS total FROM spend_queue WHERE settle_ref=$1 GROUP BY username', [ref]);
+  for (const row of r.rows) {
+    const total = parseInt(row.total);
+    await pool.query('UPDATE users SET rcr_balance = GREATEST(0, COALESCE(rcr_balance,0) - $1), rcr_pending = GREATEST(0, COALESCE(rcr_pending,0) - $1) WHERE hive_name=$2', [total, row.username]);
+  }
+  await pool.query('DELETE FROM spend_queue WHERE settle_ref=$1', [ref]);
+  return r.rows;
+}
+
+async function markPosted(ref) {
+  // Real mode: memo posted to Hive, sync will update balances. Just clear pending queue.
+  await pool.query('DELETE FROM spend_queue WHERE settle_ref=$1', [ref]);
+}
+
+async function getSyncPaused() {
+  const r = await pool.query('SELECT value FROM settings WHERE key=$1', ['sync_paused']);
+  return r.rows[0] && r.rows[0].value === '1';
+}
+
+async function setSyncPaused(paused) {
+  await pool.query('INSERT INTO settings (key,value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2', ['sync_paused', paused ? '1' : '0']);
+}
+
 module.exports = {
   pool, initDB, seedRCR, 
   getUser, upsertUser, getAllUsers, deleteUser,
@@ -357,5 +404,6 @@ module.exports = {
   getAllPolls, getPoll, savePoll, deletePoll, savePastPoll, getPastPolls,
   getAllMissions, getMission, saveMission, deleteMission, getUserMissions, completeMission,
   addPinRequest, getPinRequests, deletePinRequest, setUserPin, getUserByEmail,
-  getDrinkItems, addDrinkItem, deleteDrinkItem, toggleDrinkItem, queueSpend, getSpendQueue, rejectSpend, clearSpendQueue, generateSettlement, getSettlement, confirmSettlement, getOpenSettlement,
+  getDrinkItems, addDrinkItem, deleteDrinkItem, toggleDrinkItem, queueSpend, getSpendQueue, rejectSpend, clearSpendQueue, generateSettlement, getSettlement, confirmSettlement, getOpenSettlement, 
+  saveSnapshot, restoreSnapshot, hasSnapshot, simulateSettlement, markPosted, getSyncPaused, setSyncPaused,
 };

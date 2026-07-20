@@ -15,6 +15,7 @@ const {
   getDrinkItems, addDrinkItem, deleteDrinkItem, toggleDrinkItem,
   getSpendQueue, rejectSpend, clearSpendQueue,
   generateSettlement, getSettlement, confirmSettlement, getOpenSettlement,
+  saveSnapshot, restoreSnapshot, hasSnapshot, simulateSettlement, markPosted, getSyncPaused, setSyncPaused,
 }                                                                       = require('../db/pool');
 const bcrypt = require('bcryptjs');
 const { checkAdminSession, generateCsrf, validateCsrf }                = require('../middleware/session');
@@ -88,6 +89,8 @@ router.get('/panel', async function(req, res) {
     const spendQueue   = await getSpendQueue();
     const openRef      = await getOpenSettlement();
     const settleRows   = openRef ? await getSettlement(openRef) : [];
+    const snapExists   = await hasSnapshot();
+    const syncPaused   = await getSyncPaused();
 
     const displayUsers = allUsers.slice(0, 20);
     const userRows = allUsers.length === 0
@@ -218,6 +221,13 @@ const pinRequestRows = pinRequests.length === 0
       '</form>' +
 
 pinRequestRows + 
+'<hr><h2 style="text-align:left;margin-bottom:12px">Test Mode</h2>' +
+      '<div style="background:rgba(251,191,36,0.06);border:0.5px solid rgba(251,191,36,0.2);border-radius:10px;padding:14px;text-align:left;margin-bottom:16px">' +
+        '<p style="font-size:13px;color:#aaa;margin:0 0 10px">Sync: <strong style="color:' + (syncPaused?'#f87171':'#4ade80') + '">' + (syncPaused?'PAUSED':'live') + '</strong>' + (snapExists ? ' &middot; snapshot saved' : '') + '</p>' +
+        '<form method="POST" action="' + ADMIN_URL + '/toggle-sync" style="display:inline"><input type="hidden" name="_csrf" value="' + csrf + '"/><button class="btn ' + (syncPaused?'btn-green':'btn-gold') + ' btn-sm">' + (syncPaused?'Resume sync':'Pause sync') + '</button></form> ' +
+        '<form method="POST" action="' + ADMIN_URL + '/save-snapshot" style="display:inline"><input type="hidden" name="_csrf" value="' + csrf + '"/><button class="btn btn-blue btn-sm">Save snapshot</button></form> ' +
+        (snapExists ? '<form method="POST" action="' + ADMIN_URL + '/restore-snapshot" style="display:inline" onsubmit="return confirm(\'Restore all balances to the saved snapshot? Clears pending too.\')"><input type="hidden" name="_csrf" value="' + csrf + '"/><button class="btn btn-red btn-sm">Restore snapshot</button></form>' : '') +
+      '</div>' +
 '<hr><h2 style="text-align:left;margin-bottom:12px">Drink Items</h2>' +
       '<div style="text-align:left;margin-bottom:12px">' +
         (drinkItems.length === 0 ? '<p style="color:#555;font-size:13px">No items yet.</p>' :
@@ -260,10 +270,15 @@ pinRequestRows +
             '<p style="text-align:left;font-size:13px;color:#aaa">1. Copy this memo and post it to Hive from the RCR account. 2. Then click Confirm.</p>' +
             '<textarea readonly style="width:100%;height:80px;background:rgba(0,0,0,0.3);color:#fbbf24;border:0.5px solid rgba(255,255,255,0.15);border-radius:8px;padding:10px;font-size:12px;box-sizing:border-box;margin-bottom:8px">' + escape(memo) + '</textarea>' +
             '<a href="' + ADMIN_URL + '/settlement-csv?ref=' + encodeURIComponent(openRef) + '" class="btn btn-blue" style="margin-bottom:8px">Download CSV</a>' +
-            '<form method="POST" action="' + ADMIN_URL + '/confirm-settlement" onsubmit="return confirm(\'Confirm settled? This deducts balances and clears the batch. Only do this AFTER posting the memo to Hive.\')" style="margin-bottom:16px">' +
+            '<form method="POST" action="' + ADMIN_URL + '/simulate-settlement" onsubmit="return confirm(\'SIMULATE (test): apply this settlement locally without posting to Hive?\')" style="margin-bottom:8px">' +
               '<input type="hidden" name="_csrf" value="' + csrf + '"/>' +
               '<input type="hidden" name="ref" value="' + escape(openRef) + '"/>' +
-              '<button class="btn btn-green">Confirm settled - deduct balances</button>' +
+              '<button class="btn btn-gold">Simulate settlement (test - no blockchain)</button>' +
+            '</form>' +
+            '<form method="POST" action="' + ADMIN_URL + '/mark-posted" onsubmit="return confirm(\'REAL: I have posted this memo to Hive. Clear the pending queue? The sync will update balances.\')" style="margin-bottom:16px">' +
+              '<input type="hidden" name="_csrf" value="' + csrf + '"/>' +
+              '<input type="hidden" name="ref" value="' + escape(openRef) + '"/>' +
+              '<button class="btn btn-green">Mark posted to Hive (real)</button>' +
             '</form>';
         } else if (spendQueue.length > 0) {
           return '<form method="POST" action="' + ADMIN_URL + '/generate-settlement" style="margin-bottom:16px">' +
@@ -425,11 +440,40 @@ router.post('/generate-settlement', async function(req, res) {
   res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Settlement generated - copy memo, post to Hive, then confirm'));
 });
 
-router.post('/confirm-settlement', async function(req, res) {
+router.post('/simulate-settlement', async function(req, res) {
   if (!checkAdminSession(req, res)) return;
   if (!csrfOk(req, res)) return;
-  await confirmSettlement(req.body.ref);
-  res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Settled - balances deducted'));
+  await simulateSettlement(req.body.ref);
+  res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Simulated - balances updated locally, nothing posted'));
+});
+
+router.post('/mark-posted', async function(req, res) {
+  if (!checkAdminSession(req, res)) return;
+  if (!csrfOk(req, res)) return;
+  await markPosted(req.body.ref);
+  res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Marked posted - pending cleared, sync will update balances'));
+});
+
+router.post('/toggle-sync', async function(req, res) {
+  if (!checkAdminSession(req, res)) return;
+  if (!csrfOk(req, res)) return;
+  const paused = await getSyncPaused();
+  await setSyncPaused(!paused);
+  res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Sync ' + (!paused ? 'paused' : 'resumed')));
+});
+
+router.post('/save-snapshot', async function(req, res) {
+  if (!checkAdminSession(req, res)) return;
+  if (!csrfOk(req, res)) return;
+  await saveSnapshot();
+  res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Snapshot saved'));
+});
+
+router.post('/restore-snapshot', async function(req, res) {
+  if (!checkAdminSession(req, res)) return;
+  if (!csrfOk(req, res)) return;
+  await restoreSnapshot();
+  res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Restored to snapshot'));
 });
 
 router.get('/settlement-csv', async function(req, res) {
