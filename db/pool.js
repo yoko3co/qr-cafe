@@ -99,6 +99,7 @@ async function initDB() {
     await pool.query('ALTER TABLE pin_requests ADD COLUMN IF NOT EXISTS full_name TEXT DEFAULT NULL');
     await pool.query('UPDATE polls SET blockchain=false WHERE blockchain=true');
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS rcr_pending INTEGER DEFAULT 0');
+    await pool.query('ALTER TABLE spend_queue ADD COLUMN IF NOT EXISTS settle_ref TEXT DEFAULT NULL');
     await pool.query(`
       CREATE TABLE IF NOT EXISTS drink_items (
         id     SERIAL PRIMARY KEY,
@@ -322,12 +323,39 @@ async function clearSpendQueue() {
   await pool.query('UPDATE users SET rcr_pending = 0');
 }
 
+async function generateSettlement() {
+  const ref = 'ref' + Date.now();
+  await pool.query('UPDATE spend_queue SET settle_ref=$1 WHERE settle_ref IS NULL', [ref]);
+  const r = await pool.query('SELECT * FROM spend_queue WHERE settle_ref=$1 ORDER BY username ASC', [ref]);
+  return { ref: ref, rows: r.rows };
+}
+
+async function getSettlement(ref) {
+  const r = await pool.query('SELECT * FROM spend_queue WHERE settle_ref=$1 ORDER BY username ASC', [ref]);
+  return r.rows;
+}
+
+async function confirmSettlement(ref) {
+  const r = await pool.query('SELECT username, SUM(amount) AS total FROM spend_queue WHERE settle_ref=$1 GROUP BY username', [ref]);
+  for (const row of r.rows) {
+    const total = parseInt(row.total);
+    await pool.query('UPDATE users SET rcr_balance = GREATEST(0, COALESCE(rcr_balance,0) - $1), rcr_pending = GREATEST(0, COALESCE(rcr_pending,0) - $1) WHERE hive_name=$2', [total, row.username]);
+  }
+  await pool.query('DELETE FROM spend_queue WHERE settle_ref=$1', [ref]);
+  return r.rows;
+}
+
+async function getOpenSettlement() {
+  const r = await pool.query('SELECT settle_ref FROM spend_queue WHERE settle_ref IS NOT NULL LIMIT 1');
+  return r.rows[0] ? r.rows[0].settle_ref : null;
+}
+
 module.exports = {
-  pool, initDB, seedRCR,
+  pool, initDB, seedRCR, 
   getUser, upsertUser, getAllUsers, deleteUser,
   getAllowedNames, addAllowedName, removeAllowedName,
   getAllPolls, getPoll, savePoll, deletePoll, savePastPoll, getPastPolls,
   getAllMissions, getMission, saveMission, deleteMission, getUserMissions, completeMission,
   addPinRequest, getPinRequests, deletePinRequest, setUserPin, getUserByEmail,
-  getDrinkItems, addDrinkItem, deleteDrinkItem, toggleDrinkItem, queueSpend, getSpendQueue, rejectSpend, clearSpendQueue,
+  getDrinkItems, addDrinkItem, deleteDrinkItem, toggleDrinkItem, queueSpend, getSpendQueue, rejectSpend, clearSpendQueue, generateSettlement, getSettlement, confirmSettlement, getOpenSettlement,
 };

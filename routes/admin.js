@@ -14,6 +14,7 @@ const {
   getPinRequests, deletePinRequest, setUserPin,
   getDrinkItems, addDrinkItem, deleteDrinkItem, toggleDrinkItem,
   getSpendQueue, rejectSpend, clearSpendQueue,
+  generateSettlement, getSettlement, confirmSettlement, getOpenSettlement,
 }                                                                       = require('../db/pool');
 const bcrypt = require('bcryptjs');
 const { checkAdminSession, generateCsrf, validateCsrf }                = require('../middleware/session');
@@ -85,6 +86,8 @@ router.get('/panel', async function(req, res) {
    const pinRequests  = await getPinRequests();
     const drinkItems   = await getDrinkItems(false);
     const spendQueue   = await getSpendQueue();
+    const openRef      = await getOpenSettlement();
+    const settleRows   = openRef ? await getSettlement(openRef) : [];
 
     const displayUsers = allUsers.slice(0, 20);
     const userRows = allUsers.length === 0
@@ -246,6 +249,30 @@ pinRequestRows +
           }).join('')) +
       '</div>' +
       (spendQueue.length > 0 ? '<form method="POST" action="' + ADMIN_URL + '/clear-spends" onsubmit="return confirm(\'Clear ALL pending spends? This unfreezes everyone.\')" style="margin-bottom:16px"><input type="hidden" name="_csrf" value="' + csrf + '"/><button class="btn btn-gold">Soft reset - clear all pending</button></form>' : '') +
+      // ---- Settlement ----
+      (function() {
+        if (openRef) {
+          // group per user for the memo
+          const totals = {};
+          settleRows.forEach(function(s) { totals[s.username] = (totals[s.username]||0) + s.amount; });
+          const memo = 'RCR:SETTLE:' + Object.keys(totals).map(function(u){ return u + '-' + totals[u]; }).join(',') + ':' + openRef;
+          return '<hr><h2 style="text-align:left;margin-bottom:12px">Settlement in progress</h2>' +
+            '<p style="text-align:left;font-size:13px;color:#aaa">1. Copy this memo and post it to Hive from the RCR account. 2. Then click Confirm.</p>' +
+            '<textarea readonly style="width:100%;height:80px;background:rgba(0,0,0,0.3);color:#fbbf24;border:0.5px solid rgba(255,255,255,0.15);border-radius:8px;padding:10px;font-size:12px;box-sizing:border-box;margin-bottom:8px">' + escape(memo) + '</textarea>' +
+            '<a href="' + ADMIN_URL + '/settlement-csv?ref=' + encodeURIComponent(openRef) + '" class="btn btn-blue" style="margin-bottom:8px">Download CSV</a>' +
+            '<form method="POST" action="' + ADMIN_URL + '/confirm-settlement" onsubmit="return confirm(\'Confirm settled? This deducts balances and clears the batch. Only do this AFTER posting the memo to Hive.\')" style="margin-bottom:16px">' +
+              '<input type="hidden" name="_csrf" value="' + csrf + '"/>' +
+              '<input type="hidden" name="ref" value="' + escape(openRef) + '"/>' +
+              '<button class="btn btn-green">Confirm settled - deduct balances</button>' +
+            '</form>';
+        } else if (spendQueue.length > 0) {
+          return '<form method="POST" action="' + ADMIN_URL + '/generate-settlement" style="margin-bottom:16px">' +
+            '<input type="hidden" name="_csrf" value="' + csrf + '"/>' +
+            '<button class="btn btn-gold">Generate settlement memo</button>' +
+          '</form>';
+        }
+        return '';
+      })() +
       '<hr><h2 style="text-align:left;margin-bottom:12px">Users (' + allUsers.length + ')</h2>' +
       '<p style="text-align:left;font-size:12px;color:#555;margin-bottom:8px">Showing top 20 by points. Download CSV for full list.</p>' +
       '<div style="overflow-x:auto"><table><tr><th>Name</th><th>Pts</th><th>Today</th><th>Actions</th></tr>' + userRows + '</table></div>' +
@@ -391,6 +418,31 @@ router.post('/reject-spend', async function(req, res) {
   res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Spend rejected and unfrozen'));
 });
 
+router.post('/generate-settlement', async function(req, res) {
+  if (!checkAdminSession(req, res)) return;
+  if (!csrfOk(req, res)) return;
+  await generateSettlement();
+  res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Settlement generated - copy memo, post to Hive, then confirm'));
+});
+
+router.post('/confirm-settlement', async function(req, res) {
+  if (!checkAdminSession(req, res)) return;
+  if (!csrfOk(req, res)) return;
+  await confirmSettlement(req.body.ref);
+  res.redirect(ADMIN_URL + '/panel?msg=' + encodeURIComponent('Settled - balances deducted'));
+});
+
+router.get('/settlement-csv', async function(req, res) {
+  if (!checkAdminSession(req, res)) return;
+  const rows = await getSettlement(req.query.ref);
+  const lines = ['username,item,amount,timestamp'];
+  rows.forEach(function(s) {
+    lines.push([s.username, s.item_name, s.amount, new Date(parseInt(s.created_at)).toISOString()].join(','));
+  });
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="settlement-' + req.query.ref + '.csv"');
+  res.send(lines.join('\n'));
+});
 router.post('/clear-spends', async function(req, res) {
   if (!checkAdminSession(req, res)) return;
   if (!csrfOk(req, res)) return;
